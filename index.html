@@ -527,8 +527,23 @@ async function saveFile(filename, text) {
     return true;
   } catch (e) { return false; }
 }
+const csvName = session => `inventario-${localDate(session.startedAt)}.csv`;
+function canShareFiles() {
+  try {
+    return !!(navigator.canShare && navigator.share &&
+      navigator.canShare({ files: [new File(["x"], "teste.csv", { type: "text/csv" })] }));
+  } catch (e) { return false; }
+}
+async function shareInventory(session, rows) {
+  const file = new File([buildCSV(session, rows)], csvName(session), { type: "text/csv" });
+  try {
+    await navigator.share({ files: [file], title: `Inventário ${fmtDay(session.startedAt)}` });
+  } catch (e) {
+    if (!e || e.name !== "AbortError") toast("Não foi possível partilhar neste dispositivo. Use Descarregar CSV.");
+  }
+}
 async function downloadInventory(session, rows) {
-  const r = await saveFile(`inventario-${localDate(session.startedAt)}.csv`, buildCSV(session, rows));
+  const r = await saveFile(csvName(session), buildCSV(session, rows));
   if (r === true) toast("CSV descarregado", true);
   else if (r === "declined") toast("Transferência cancelada. O inventário continua no Histórico.");
   else toast("A transferência não começou neste dispositivo. O inventário fica guardado no Histórico.");
@@ -1098,18 +1113,19 @@ function openFinishSheet() {
       ${rows.length ? previewTable(s, rows) : `<div class="empty"><strong>Nenhum produto contado</strong>Não há nada para exportar. Volte atrás e leia produtos, ou descarte este inventário.</div>`}
     </div>
     <div class="sheet-foot stack">
-      <button class="btn btn-primary" id="dlBtn" ${rows.length ? "" : "disabled"}>Descarregar CSV</button>
-      ${rows.length ? `<p class="note">Ao descarregar, o inventário fica terminado e é guardada uma cópia no Histórico.</p>` : ""}
+      <button class="btn btn-primary" id="saveInvBtn" ${rows.length ? "" : "disabled"}>Guardar</button>
+      ${rows.length ? `<p class="note">Termina o inventário e abre-o no Histórico, onde o pode partilhar ou descarregar.</p>` : ""}
       <div class="row"><button class="btn" id="backBtn2">Voltar</button><button class="btn btn-danger" id="discardBtn">Descartar inventário</button></div>
     </div>`);
   $("#backBtn2").onclick = () => { closeSheet(); afterSheet(); };
-  $("#dlBtn").onclick = async () => {
-    $("#dlBtn").disabled = true;
-    const { session, rows: done } = await completeSession();
+  $("#saveInvBtn").onclick = async () => {
+    $("#saveInvBtn").disabled = true;
+    const { session } = await completeSession();
     state.armed = false;
     closeSheet();
     showTab("history");
-    await downloadInventory(session, done);
+    await openHistorySheet(session.id);
+    toast("Inventário guardado no Histórico", true);
   };
   $("#discardBtn").onclick = async () => {
     const ok = await confirmModal("Tem a certeza de que quer eliminar este inventário?",
@@ -1142,9 +1158,16 @@ async function openHistorySheet(id) {
       <div class="barcode">${plural(rows.length, "produto", "produtos")}, terminado às ${esc(fmtTime(s.completedAt))}</div>
       ${previewTable(s, rows)}
     </div>
-    <div class="sheet-foot"><div class="foot-row"><button class="btn" id="closeBtn">Fechar</button><button class="btn btn-primary" id="dlAgain">Descarregar CSV</button></div></div>`);
+    <div class="sheet-foot stack">
+      ${canShareFiles()
+        ? `<div class="row"><button class="btn btn-primary" id="shareBtn">Partilhar</button><button class="btn" id="dlAgain">Descarregar CSV</button></div>`
+        : `<button class="btn btn-primary" id="dlAgain">Descarregar CSV</button>`}
+      <button class="btn" id="closeBtn">Fechar</button>
+    </div>`);
   $("#closeBtn").onclick = () => closeSheet();
   $("#dlAgain").onclick = () => downloadInventory(s, rows);
+  const sh = $("#shareBtn");
+  if (sh) sh.onclick = () => shareInventory(s, rows);
 }
 
 /* ---------- Products ---------- */
