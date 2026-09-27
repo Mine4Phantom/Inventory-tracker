@@ -1,0 +1,1280 @@
+<!doctype html>
+<html lang="pt-PT" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0F1D20">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Contagem">
+<title>Contagem de stock</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper: #F3F6F4;
+  --surface: #FFFFFF;
+  --ink: #10262B;
+  --muted: #56696C;
+  --line: #D3DDDA;
+  --accent: #FFC629;
+  --accent-ink: #10262B;
+  --tint: #FFF3C7;
+  --ok: #1B7550;
+  --danger: #B42318;
+  --danger-tint: #FDECEA;
+  --key: #E4EBE9;
+  --go-bg: #E2F2E9; --go-line: #1B7550; --go-ink: #135C3E;
+  --warn: #C2410C; --warn-tint: #FFEDD5;
+  --active-bg: #FFF8E0;
+  --font: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0F1D20; --surface: #172A2E; --ink: #E7EFED; --muted: #9AB0B2; --line: #2A4247;
+    --tint: #3A3217; --ok: #43C98C; --danger: #F2685D; --danger-tint: #3A1E1C; --key: #1F373C;
+    --go-bg: #153A2C; --go-line: #43C98C; --go-ink: #C6F2DC;
+    --warn: #FB923C; --warn-tint: #3B2213;
+    --active-bg: #283428;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0F1D20; --surface: #172A2E; --ink: #E7EFED; --muted: #9AB0B2; --line: #2A4247;
+  --tint: #3A3217; --ok: #43C98C; --danger: #F2685D; --danger-tint: #3A1E1C; --key: #1F373C;
+    --go-bg: #153A2C; --go-line: #43C98C; --go-ink: #C6F2DC;
+    --warn: #FB923C; --warn-tint: #3B2213;
+    --active-bg: #283428;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html { height: 100%; background: var(--paper); scroll-padding-top: env(safe-area-inset-top, 0px); }
+body {
+  height: 100%; margin: 0; background: var(--paper); color: var(--ink);
+  font-family: var(--font); font-size: 17px; line-height: 1.4;
+  -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%;
+}
+button, input { font: inherit; color: inherit; }
+button { touch-action: manipulation; cursor: pointer; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+[hidden] { display: none !important; }
+.num { font-variant-numeric: tabular-nums; }
+
+#app { height: 100%; display: flex; flex-direction: column; max-width: 560px; margin: 0 auto; }
+.topbar { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 10px 18px 8px; }
+.topbar h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.01em; }
+.topbar .meta { color: var(--muted); font-size: 15px; }
+main { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+main > section { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.pad { padding: 4px 18px 24px; }
+
+.tabs { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--line); background: var(--paper); }
+.tabs button {
+  height: 60px; border: 0; background: none; color: var(--muted); font-size: 16px; font-weight: 700;
+  position: relative;
+}
+.tabs button[aria-current="page"] { color: var(--ink); }
+.tabs button[aria-current="page"]::before { content: ""; position: absolute; left: 18%; right: 18%; top: -1px; height: 4px; background: var(--accent); border-radius: 0 0 3px 3px; }
+.tabs .badge { font-variant-numeric: tabular-nums; font-weight: 400; }
+
+/* Buttons */
+.btn {
+  display: flex; align-items: center; justify-content: center; width: 100%;
+  min-height: 56px; padding: 12px 18px; border-radius: 14px; border: 2px solid var(--line);
+  background: var(--surface); font-size: 18px; font-weight: 700; text-align: center;
+}
+.btn-primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); min-height: 68px; font-size: 21px; }
+.btn-primary:disabled { background: var(--key); border-color: var(--key); color: var(--muted); }
+@supports (background: color-mix(in srgb, red 50%, blue)) {
+  .btn-primary:disabled {
+    background: color-mix(in srgb, var(--accent) 30%, var(--paper));
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--paper));
+    color: color-mix(in srgb, var(--accent-ink) 55%, var(--paper));
+  }
+  :root[data-theme="dark"] .btn-primary:disabled { color: color-mix(in srgb, var(--accent) 70%, var(--paper)); }
+}
+@media (prefers-color-scheme: dark) { @supports (background: color-mix(in srgb, red 50%, blue)) {
+  :root:not([data-theme="light"]) .btn-primary:disabled { color: color-mix(in srgb, var(--accent) 70%, var(--paper)); }
+} }
+.btn-finish { background: var(--go-bg); border-color: var(--go-line); color: var(--go-ink); }
+.btn-scan { border-color: var(--accent); }
+.btn-danger { color: var(--danger); border-color: var(--danger); background: transparent; }
+.btn-danger-solid { background: var(--danger); border-color: var(--danger); color: #fff; }
+.btn-quiet { border-color: transparent; background: transparent; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; min-height: 48px; }
+.row { display: flex; gap: 10px; }
+.row > * { flex: 1; }
+.stack > * + * { margin-top: 10px; }
+
+/* Scan */
+#scan { display: flex; flex-direction: column; overflow: hidden; }
+.camera { position: relative; flex: 1; min-height: 220px; margin: 0 12px; border-radius: 18px; overflow: hidden; background: #081214; }
+.camera video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.reticle {
+  position: absolute; left: 9%; right: 9%; top: 34%; height: 32%;
+  border: 3px solid var(--accent); border-radius: 12px;
+  box-shadow: 0 0 0 100vmax rgba(4, 12, 14, 0.38);
+  transition: border-color 120ms ease-out;
+}
+.reticle.hit { border-color: #43C98C; border-width: 5px; }
+.reticle .laser { position: absolute; left: 6%; right: 6%; top: 50%; height: 2px; background: rgba(255, 198, 41, 0.75); }
+.camera-msg {
+  position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; gap: 14px;
+  padding: 24px; color: #E7EFED; background: #081214; text-align: left;
+}
+.camera-msg h2 { margin: 0; font-size: 22px; }
+.camera-msg p { margin: 0; color: #B9C9CA; }
+.camera-msg .btn { background: #1F373C; border-color: #2A4247; color: #E7EFED; }
+.camera-msg .btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); min-height: 60px; font-size: 19px; }
+.camera-msg { overflow-y: auto; padding-top: 68px; justify-content: flex-start; }
+.scan-status { padding: 10px 18px 0; min-height: 34px; color: var(--muted); font-size: 16px; }
+.scan-status.err { color: var(--danger); }
+.scan-actions { display: flex; gap: 10px; padding: 10px 12px 12px; }
+.cam-restart {
+  position: absolute; top: 10px; right: 10px; z-index: 3; min-height: 44px; padding: 8px 16px; border-radius: 999px;
+  background: rgba(8, 18, 20, 0.72); color: #E7EFED; border: 1px solid rgba(231, 239, 237, 0.3); font-size: 15px; font-weight: 700;
+}
+.capture { position: relative; height: 230px; margin-top: 12px; border-radius: 16px; overflow: hidden; background: #081214; }
+.capture video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.capture .reticle { top: 28%; height: 44%; }
+.capture-status { color: var(--muted); font-size: 15px; min-height: 1.2em; margin: 8px 2px 0; }
+.capture-status.err { color: var(--danger); }
+.tally {
+  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 12px; width: calc(100% - 24px);
+  margin: 8px 12px 0; padding: 10px 16px; min-height: 64px; border-radius: 14px;
+  border: 2px solid var(--line); background: var(--surface); text-align: left;
+}
+.tally-main { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.tally-sub { grid-column: 1; color: var(--muted); font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.tally-go { grid-column: 2; grid-row: 1 / span 2; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.scan-actions .btn { min-height: 54px; font-size: 17px; }
+
+.start { padding: 8px 18px 24px; display: flex; flex-direction: column; min-height: 100%; }
+.start h2 { font-size: 30px; line-height: 1.15; margin: 12px 0 10px; letter-spacing: -0.01em; }
+.start p { color: var(--muted); margin: 0 0 8px; max-width: 34ch; }
+.start .grow { flex: 1; min-height: 24px; }
+.resume-card { border: 2px solid var(--accent); background: var(--tint); border-radius: 16px; padding: 16px; margin: 14px 0 16px; }
+.resume-card strong { display: block; font-size: 20px; }
+.resume-card span { color: var(--ink); opacity: .8; }
+
+/* Lists */
+.summary { display: flex; gap: 22px; padding: 6px 0 14px; }
+.summary div { display: flex; flex-direction: column; }
+.summary b { font-size: 30px; line-height: 1.1; }
+.summary span { color: var(--muted); font-size: 15px; }
+.list { list-style: none; margin: 0 0 18px; padding: 0; border-top: 1px solid var(--line); }
+.list button {
+  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 14px; width: 100%;
+  min-height: 68px; padding: 10px 2px; border: 0; border-bottom: 1px solid var(--line); background: none; text-align: left;
+}
+.list .name { font-size: 20px; font-weight: 700; overflow-wrap: anywhere; }
+.list .sub { grid-column: 1; color: var(--muted); font-size: 15px; font-variant-numeric: tabular-nums; }
+.list .qty { grid-row: 1 / span 2; grid-column: 2; font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; min-width: 2ch; text-align: right; }
+.empty { padding: 28px 0; color: var(--muted); }
+.empty strong { display: block; color: var(--ink); font-size: 20px; margin-bottom: 4px; }
+.section-actions { margin: 4px 0 16px; }
+
+/* Sheets */
+.sheet {
+  position: fixed; inset: 0; z-index: 20; background: var(--paper); display: flex; flex-direction: column;
+  padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.sheet-inner { flex: 1; min-height: 0; display: flex; flex-direction: column; width: 100%; max-width: 560px; margin: 0 auto; }
+.sheet-body { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 18px 12px; display: flex; flex-direction: column; }
+.sheet-foot { padding: 10px 16px 14px; border-top: 1px solid var(--line); }
+.foot-row { display: grid; grid-template-columns: minmax(96px, auto) 1fr; gap: 10px; align-items: stretch; }
+.foot-row .btn { min-height: 68px; }
+.foot-row .btn-primary { font-size: 20px; line-height: 1.2; padding-left: 12px; padding-right: 12px; text-wrap: balance; }
+.foot-row.even { grid-template-columns: 1fr 1fr; }
+.product-card { background: var(--surface); border: 2px solid var(--line); border-left: 8px solid var(--accent); border-radius: 16px; padding: 18px 18px 14px; }
+.sheet .product-card h2 { margin: 0 0 6px; font-size: clamp(30px, 9vw, 44px); line-height: 1.08; letter-spacing: -0.015em; }
+.product-card .new-flag { margin-bottom: 8px; }
+.product-card .barcode { font-size: 17px; }
+.sheet h2 { margin: 2px 0 2px; font-size: 28px; line-height: 1.15; letter-spacing: -0.01em; overflow-wrap: anywhere; }
+.barcode { color: var(--muted); font-size: 16px; font-variant-numeric: tabular-nums; letter-spacing: 0.04em; }
+.prev { margin-top: 10px; padding: 8px 14px; border-radius: 12px; background: var(--tint); font-size: 17px; }
+.prev b { font-variant-numeric: tabular-nums; }
+.new-flag { display: inline-block; margin-bottom: 6px; padding: 2px 10px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-size: 15px; font-weight: 700; }
+
+.field { display: block; margin-top: 14px; }
+.field span { display: block; font-size: 15px; color: var(--muted); margin-bottom: 6px; }
+.field input {
+  width: 100%; min-height: 56px; padding: 12px 14px; font-size: 20px; border-radius: 12px;
+  border: 2px solid var(--line); background: var(--surface);
+}
+.field input:focus { border-color: var(--ink); outline: none; }
+.field-error { color: var(--danger); font-size: 15px; margin-top: 6px; min-height: 1em; }
+
+/* Quantity + minimum: the selected box gets a soft yellow wash */
+.qty-row { display: flex; gap: 10px; margin-top: 10px; align-items: stretch; }
+.qty-col { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.min-col { flex: none; width: 36%; display: flex; flex-direction: column; }
+.box-label { font-size: 15px; color: var(--muted); margin: 0 4px 4px; }
+.qty-col .qty-display, .min-col .min-box { flex: 1; }
+.qty-display {
+  min-width: 0; display: flex; flex-wrap: wrap; align-items: center; column-gap: 10px; padding: 4px 16px 6px;
+  min-height: clamp(76px, 21vw, 108px); border-radius: 16px; background: var(--surface); border: 2px solid var(--line);
+}
+.qty-display output { font-size: clamp(56px, 17vw, 92px); font-weight: 700; line-height: 1.05; font-variant-numeric: tabular-nums; min-width: 1ch; }
+.qty-display output.placeholder { color: var(--line); }
+.qty-display .unit { font-size: 20px; color: var(--muted); }
+.qty-display .caret {
+  align-self: center; width: 4px; height: clamp(40px, 12vw, 64px); margin-left: -6px; border-radius: 2px;
+  background: var(--accent); animation: caret 1.05s steps(1) infinite;
+}
+@keyframes caret { 50% { opacity: 0; } }
+.min-box {
+  width: 100%; display: flex; align-items: center; gap: 4px; padding: 8px 14px;
+  border: 2px solid var(--line); border-radius: 16px; background: var(--surface); text-align: left;
+}
+.min-box output { font-size: 40px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.min-box .min-ph { font-size: 17px; color: var(--muted); }
+.min-box .caret { width: 3px; height: 34px; border-radius: 2px; background: var(--accent); animation: caret 1.05s steps(1) infinite; }
+.qty-display.active, .min-box.active { border-color: var(--accent); background: var(--active-bg); }
+.qty-display:not(.active) .caret, .min-box:not(.active) .caret, .qty-display.empty .caret, .min-box.empty .caret { display: none; }
+.qty-display.warn { border-color: var(--warn); background: var(--warn-tint); }
+.hint.warn { color: var(--warn); font-weight: 700; font-size: 17px; }
+.min-chip { display: block; margin: 4px 4px 0; padding: 6px 0; border: 0; background: none; color: var(--muted); font-size: 15px; text-align: left; }
+.min-chip b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.min-chip u { color: var(--ink); text-underline-offset: 3px; margin-left: 6px; }
+.below-sum { margin-top: 12px; padding: 10px 14px; border-radius: 12px; background: var(--warn-tint); border-left: 6px solid var(--warn); }
+.below-sum b { color: var(--warn); }
+table.preview tr.below td { background: var(--warn-tint); }
+table.preview tr.below td:first-child { box-shadow: inset 5px 0 0 var(--warn); padding-left: 12px; }
+table.preview td.short { color: var(--warn); font-weight: 700; }
+.list .qty.warn { color: var(--warn); }
+.list .minq { font-size: 16px; font-weight: 400; color: var(--muted); }
+.hint { color: var(--muted); font-size: 15px; min-height: 22px; margin: 6px 2px 0; }
+@media (max-height: 800px) { .keypad { padding-top: 6px; gap: 7px; } .keypad button { height: 48px; } .sheet-body .field { margin-top: 10px; } .hint { min-height: 18px; } .hint { margin-top: 4px; } .qty-display { min-height: 76px; } .qty-display output { font-size: 60px; } .product-card { padding: 12px 16px 10px; } }
+.keypad { margin-top: auto; padding-top: 10px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.keypad button {
+  height: clamp(50px, 7.6vh, 64px); border: 0; border-radius: 12px; background: var(--key);
+  font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.keypad button:active { background: var(--line); }
+.keypad .fn { font-size: 18px; background: transparent; border: 2px solid var(--key); color: var(--muted); }
+.keypad .fn.back { color: var(--ink); }
+.keypad button { display: flex; align-items: center; justify-content: center; }
+
+.preview-wrap { overflow-x: auto; margin: 12px -18px 0; padding: 0 18px; }
+table.preview { border-collapse: collapse; width: 100%; font-size: 15px; font-variant-numeric: tabular-nums; }
+table.preview th, table.preview td { text-align: left; padding: 9px 10px 9px 0; border-bottom: 1px solid var(--line); white-space: nowrap; }
+table.preview th { color: var(--muted); font-weight: 400; }
+table.preview td:first-child { white-space: normal; min-width: 9em; font-weight: 700; }
+table.preview td.q, table.preview th.q { text-align: right; }
+.note { color: var(--muted); font-size: 15px; margin: 8px 2px 0; }
+
+/* Modal */
+.modal-back { position: fixed; inset: 0; z-index: 40; background: rgba(4, 12, 14, 0.55); display: flex; align-items: flex-end; justify-content: center; }
+.modal {
+  width: 100%; max-width: 560px; background: var(--paper); border-radius: 20px 20px 0 0;
+  padding: 22px 18px calc(18px + env(safe-area-inset-bottom, 0px));
+}
+.modal h2 { margin: 0 0 8px; font-size: 24px; line-height: 1.2; }
+.modal p { margin: 0 0 18px; color: var(--muted); }
+
+/* Toast */
+.toast {
+  position: fixed; left: 50%; top: calc(10px + env(safe-area-inset-top, 0px)); transform: translateX(-50%);
+  z-index: 50; width: min(92vw, 520px); padding: 14px 16px; border-radius: 14px;
+  background: var(--ink); color: var(--paper); font-size: 17px; font-weight: 700;
+  opacity: 0; pointer-events: none; transition: opacity 140ms ease-out;
+}
+.toast.show { opacity: 1; }
+.toast.ok { background: var(--ok); color: #fff; }
+@media (max-height: 620px) {
+  .qty-display output { font-size: 56px; }
+  .keypad button { height: 46px; }
+  .keypad { gap: 6px; }
+  .sheet h2 { font-size: 24px; }
+  .sheet .product-card h2 { font-size: 30px; }
+  .product-card { padding: 10px 14px 8px; }
+  .prev { margin-top: 8px; padding: 6px 12px; font-size: 16px; }
+  .btn-primary { min-height: 58px; }
+}
+@media (max-height: 580px) {
+  .qty-display output { font-size: 46px; }
+  .keypad button { height: 42px; font-size: 24px; }
+  .hint { min-height: 0; margin-top: 4px; }
+}
+@media (prefers-reduced-motion: reduce) { .toast, .reticle { transition: none; } .qty-display .caret, .min-box .caret { animation: none; } }
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="topbar"><h1 id="title">Contar</h1><span class="meta num" id="topmeta"></span></header>
+  <main>
+    <section id="scan" aria-label="Contar"></section>
+    <section id="history" aria-label="Histórico" hidden></section>
+    <section id="products" aria-label="Produtos" hidden></section>
+  </main>
+  <nav class="tabs" aria-label="Principal">
+    <button data-tab="scan" aria-current="page">Contar</button>
+    <button data-tab="history">Histórico</button>
+    <button data-tab="products">Produtos</button>
+  </nav>
+</div>
+<div id="sheet" class="sheet" hidden role="dialog" aria-modal="true"></div>
+<div id="modal" class="modal-back" hidden></div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script>
+"use strict";
+
+/* ---------- Utilities ---------- */
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
+const nowISO = () => new Date().toISOString();
+const pad2 = n => String(n).padStart(2, "0");
+const localDate = iso => { const d = new Date(iso); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; };
+const fmtDay = iso => new Date(iso).toLocaleDateString("pt-PT", { day: "numeric", month: "short", year: "numeric" });
+const fmtTime = iso => new Date(iso).toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" });
+const fmtStarted = iso => `${new Date(iso).toLocaleDateString("pt-PT", { weekday: "short", day: "numeric", month: "short" })}, ${fmtTime(iso)}`;
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+const cleanBarcode = v => String(v ?? "").trim();
+
+/* ---------- IndexedDB ---------- */
+const DB = {
+  db: null,
+  open() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open("stockcount", 1);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        const p = db.createObjectStore("products", { keyPath: "id" });
+        p.createIndex("barcode", "barcode", { unique: true });
+        const s = db.createObjectStore("sessions", { keyPath: "id" });
+        s.createIndex("status", "status");
+        const c = db.createObjectStore("counts", { keyPath: ["inventoryId", "barcode"] });
+        c.createIndex("inventoryId", "inventoryId");
+        db.createObjectStore("meta", { keyPath: "key" });
+      };
+      req.onsuccess = () => { DB.db = req.result; resolve(); };
+      req.onerror = () => reject(req.error);
+    });
+  },
+  // Runs fn(stores) in one transaction; resolves with fn's collected result when the transaction commits.
+  tx(names, mode, fn) {
+    return new Promise((resolve, reject) => {
+      const t = DB.db.transaction(names, mode);
+      const stores = Object.fromEntries([].concat(names).map(n => [n, t.objectStore(n)]));
+      let out;
+      Promise.resolve(fn(stores, v => (out = v))).catch(reject);
+      t.oncomplete = () => resolve(out);
+      t.onerror = () => reject(t.error);
+      t.onabort = () => reject(t.error || new Error("Transaction aborted"));
+    });
+  },
+  all(store, index, key) {
+    return DB.tx(store, "readonly", (s, set) => {
+      const src = index ? s[store].index(index) : s[store];
+      const r = key === undefined ? src.getAll() : src.getAll(key);
+      r.onsuccess = () => set(r.result);
+    });
+  },
+  get(store, key) { return DB.tx(store, "readonly", (s, set) => { const r = s[store].get(key); r.onsuccess = () => set(r.result); }); },
+  put(store, value) { return DB.tx(store, "readwrite", s => { s[store].put(value); }); },
+};
+
+/* ---------- State ---------- */
+const state = {
+  tab: "scan",
+  products: new Map(),   // barcode -> product
+  session: null,         // active session or null
+  counts: new Map(),     // barcode -> count (active session)
+  armed: false,          // user has started/resumed scanning in this page load
+  completed: [],         // completed sessions, newest first
+};
+
+const SEED = [
+  { name: "Vetadol 500 mg", barcode: "2001234000017" },
+  { name: "Caniflox 50 mg", barcode: "2001234000024" },
+  { name: "FelineCare Paste", barcode: "2001234000031" },
+];
+
+async function loadAll() {
+  await DB.open();
+  const seeded = await DB.get("meta", "seeded");
+  if (!seeded) {
+    await DB.tx(["products", "meta"], "readwrite", s => {
+      SEED.forEach(p => s.products.put({ id: uid(), barcode: p.barcode, name: p.name, createdAt: nowISO() }));
+      s.meta.put({ key: "seeded", value: true });
+    });
+  }
+  const products = await DB.all("products");
+  state.products = new Map(products.map(p => [String(p.barcode), p]));
+  const sessions = await DB.all("sessions");
+  const active = sessions.filter(s => s.status === "active").sort((a, b) => b.startedAt.localeCompare(a.startedAt));
+  state.session = active[0] || null;
+  state.completed = sessions.filter(s => s.status === "completed").sort((a, b) => b.completedAt.localeCompare(a.completedAt));
+  state.counts = new Map();
+  if (state.session) {
+    const counts = await DB.all("counts", "inventoryId", state.session.id);
+    counts.forEach(c => state.counts.set(String(c.barcode), c));
+  }
+  try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
+}
+
+async function startSession() {
+  const s = { id: uid(), startedAt: nowISO(), updatedAt: nowISO(), completedAt: null, status: "active", productCount: 0 };
+  await DB.put("sessions", s);
+  state.session = s; state.counts = new Map();
+}
+
+async function saveCount(barcode, product, quantity) {
+  const s = state.session;
+  const minStock = typeof product.minStock === "number" ? product.minStock : null;
+  const c = { inventoryId: s.id, productId: product.id, barcode, productName: product.name, quantity, minStock, updatedAt: nowISO() };
+  s.updatedAt = c.updatedAt;
+  state.counts.set(barcode, c);
+  s.productCount = state.counts.size;
+  await DB.tx(["counts", "sessions"], "readwrite", st => { st.counts.put(c); st.sessions.put(s); });
+}
+
+async function removeCount(barcode) {
+  const s = state.session;
+  state.counts.delete(barcode);
+  s.updatedAt = nowISO(); s.productCount = state.counts.size;
+  await DB.tx(["counts", "sessions"], "readwrite", st => { st.counts.delete([s.id, barcode]); st.sessions.put(s); });
+}
+
+async function addProduct(barcode, name, minStock = null) {
+  const p = { id: uid(), barcode, name, minStock, createdAt: nowISO() };
+  await DB.put("products", p);
+  state.products.set(barcode, p);
+  return p;
+}
+
+async function updateProduct(p, changes) {
+  Object.assign(p, changes);
+  const c = state.counts.get(p.barcode);
+  await DB.tx(["products", "counts"], "readwrite", st => {
+    st.products.put(p);
+    if (c) { c.productName = p.name; c.minStock = typeof p.minStock === "number" ? p.minStock : null; st.counts.put(c); }
+  });
+}
+
+async function deleteProduct(p) {
+  await DB.tx("products", "readwrite", st => { st.products.delete(p.id); });
+  state.products.delete(p.barcode);
+}
+
+async function completeSession() {
+  const s = state.session;
+  s.status = "completed"; s.completedAt = nowISO(); s.updatedAt = s.completedAt; s.productCount = state.counts.size;
+  const rows = sortedCounts(withMins([...state.counts.values()]));
+  await DB.tx(["sessions", "counts"], "readwrite", st => { st.sessions.put(s); rows.forEach(r => st.counts.put(r)); });
+  state.completed.unshift(s);
+  state.session = null; state.counts = new Map();
+  return { session: s, rows };
+}
+
+async function discardSession() {
+  const s = state.session;
+  await DB.tx(["sessions", "counts"], "readwrite", st => {
+    st.sessions.delete(s.id);
+    const r = st.counts.index("inventoryId").getAllKeys(s.id);
+    r.onsuccess = () => r.result.forEach(k => st.counts.delete(k));
+  });
+  state.session = null; state.counts = new Map();
+}
+
+const minOf = r => (typeof r.minStock === "number" ? r.minStock : null);
+const shortOf = r => { const m = minOf(r); return m !== null && r.quantity < m ? m - r.quantity : 0; };
+// Active inventory rows take the product's current minimum; finished inventories keep the one saved with them.
+const withMins = rows => rows.map(r => {
+  const p = state.products.get(r.barcode);
+  return p ? { ...r, minStock: typeof p.minStock === "number" ? p.minStock : null } : r;
+});
+const byName = (a, b) => a.productName.localeCompare(b.productName, "pt-PT", { sensitivity: "base" });
+const sortedCounts = rows => rows.slice().sort((a, b) => (shortOf(b) > 0) - (shortOf(a) > 0) || shortOf(b) - shortOf(a) || byName(a, b));
+const parseMin = v => { v = String(v ?? "").trim(); if (v === "") return null; return /^\d{1,5}$/.test(v) ? parseInt(v, 10) : NaN; };
+
+/* ---------- CSV + download ---------- */
+function csvCell(v) {
+  const s = String(v ?? "");
+  return /[",\r\n]/.test(s) || /^\s|\s$/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+function buildCSV(session, rows) {
+  const date = localDate(session.startedAt);
+  const lines = [["Nome do produto", "Código de barras", "Quantidade", "Stock mínimo", "Em falta", "Data do inventário"].join(",")];
+  rows.forEach(r => {
+    const m = minOf(r);
+    lines.push([r.productName, String(r.barcode), r.quantity, m === null ? "" : m, m === null ? "" : shortOf(r), date].map(csvCell).join(","));
+  });
+  return "\uFEFF" + lines.join("\r\n") + "\r\n";
+}
+const downloadsCap = (window.claude && typeof window.claude.use === "function")
+  ? window.claude.use("downloads").catch(() => null) : Promise.resolve(null);
+
+async function saveFile(filename, text) {
+  const dl = await downloadsCap;
+  if (dl) {
+    try { await dl.save({ filename, data: text }); return true; }
+    catch (e) { return e && e.code === "declined" ? "declined" : false; }
+  }
+  try {
+    const url = URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" }));
+    const a = document.createElement("a");
+    a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    return true;
+  } catch (e) { return false; }
+}
+async function downloadInventory(session, rows) {
+  const r = await saveFile(`inventario-${localDate(session.startedAt)}.csv`, buildCSV(session, rows));
+  if (r === true) toast("CSV descarregado", true);
+  else if (r === "declined") toast("Transferência cancelada. O inventário continua no Histórico.");
+  else toast("A transferência não começou neste dispositivo. O inventário fica guardado no Histórico.");
+}
+
+/* ---------- Feedback ---------- */
+let audioCtx = null;
+document.addEventListener("pointerdown", () => {
+  if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+  else if (audioCtx.state === "suspended") audioCtx.resume();
+}, { passive: true });
+function beep() {
+  if (!audioCtx) return;
+  try {
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.frequency.value = 1760; g.gain.value = 0.06;
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(); o.stop(audioCtx.currentTime + 0.07);
+  } catch (e) {}
+}
+let toastTimer;
+function toast(msg, ok = false) {
+  const t = $("#toast");
+  t.textContent = msg; t.className = "toast show" + (ok ? " ok" : "");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.className = "toast" + (ok ? " ok" : ""); }, 2200);
+}
+
+/* ---------- Scanner ---------- */
+const ZXING_URL = "https://cdn.jsdelivr.net/npm/@zxing/library@0.23.0/umd/index.min.js";
+const NATIVE_FORMATS = ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39", "itf", "qr_code", "data_matrix"];
+
+const Scanner = {
+  video: null, stream: null, engine: null, detector: null, zx: null, canvas: null,
+  paused: false, busy: false, timer: null, cooldownCode: null, cooldownUntil: 0,
+  status: "idle", onDetect: null, onStatus: null,
+
+  setStatus(s, detail) { this.status = s; this.onStatus && this.onStatus(s, detail); },
+
+  async initEngine() {
+    if (this.engine) return this.engine;
+    if ("BarcodeDetector" in window) {
+      try {
+        const supported = await BarcodeDetector.getSupportedFormats();
+        const formats = NATIVE_FORMATS.filter(f => supported.includes(f));
+        if (formats.length) { this.detector = new BarcodeDetector({ formats }); return (this.engine = "native"); }
+      } catch (e) {}
+    }
+    await new Promise((resolve, reject) => {
+      if (window.ZXing) return resolve();
+      const s = document.createElement("script");
+      s.src = ZXING_URL; s.onload = resolve; s.onerror = () => reject(new Error("zxing"));
+      document.head.appendChild(s);
+    });
+    const Z = window.ZXing, F = Z.BarcodeFormat;
+    const hints = new Map();
+    hints.set(Z.DecodeHintType.POSSIBLE_FORMATS, [F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.CODE_128, F.CODE_39, F.ITF]);
+    hints.set(Z.DecodeHintType.TRY_HARDER, true);
+    this.zx = new Z.MultiFormatReader(); this.zx.setHints(hints);
+    this.canvas = document.createElement("canvas");
+    return (this.engine = "zxing");
+  },
+
+  async start(video) {
+    if (this.starting) return;
+    this.starting = true;
+    try { await this._start(video); } finally { this.starting = false; }
+  },
+
+  async _start(video) {
+    this.video = video;
+    this.paused = false;
+    if (this.stream && this.stream.active) {
+      if (video.srcObject !== this.stream) { video.srcObject = this.stream; try { await video.play(); } catch (e) {} }
+      this.loop(); this.setStatus("scanning"); return;
+    }
+    if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      this.setStatus("unavailable", "insecure"); return;
+    }
+    this.setStatus("starting");
+    try { await this.initEngine(); }
+    catch (e) { this.setStatus("unavailable", "engine"); return; }
+    const slow = setTimeout(() => { if (this.status === "starting") this.setStatus("error", "timeout"); }, 8000);
+    try {
+      this.stream = await navigator.mediaDevices.getUserMedia({
+        audio: false, video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } },
+      });
+      clearTimeout(slow);
+    } catch (e) {
+      clearTimeout(slow);
+      const denied = e && (e.name === "NotAllowedError" || e.name === "SecurityError");
+      this.setStatus(denied ? "denied" : "error", e && e.name); return;
+    }
+    if (this.video !== video || (state.tab !== "scan" && !this.captureHandler)) { this.stop(); return; }
+    video.srcObject = this.stream;
+    try { await video.play(); } catch (e) {}
+    this.stream.getVideoTracks().forEach(t => t.addEventListener("ended", () => this.setStatus("error", "ended")));
+    this.loop();
+    this.setStatus("scanning");
+  },
+
+  stop() {
+    clearTimeout(this.timer); this.timer = null;
+    if (this.stream) this.stream.getTracks().forEach(t => t.stop());
+    this.stream = null;
+    if (this.video) this.video.srcObject = null;
+    if (this.status !== "denied" && this.status !== "unavailable") this.setStatus("idle");
+  },
+
+  async restart() { this.stop(); this.status = "idle"; if (this.video) await this.start(this.video); },
+  pause() { this.paused = true; },
+  resume(cooldownCode) {
+    if (cooldownCode) { this.cooldownCode = cooldownCode; this.cooldownUntil = Date.now() + 2500; }
+    this.paused = false;
+  },
+
+  loop() {
+    clearTimeout(this.timer);
+    const tick = async () => {
+      if (!this.stream) return;
+      if (!this.paused && !this.busy && this.video.readyState >= 2) {
+        this.busy = true;
+        let code = null;
+        try { code = this.engine === "native" ? await this.detectNative() : this.detectZX(); } catch (e) {}
+        this.busy = false;
+        if (code && !this.paused) {
+          code = cleanBarcode(code);
+          const blocked = code === this.cooldownCode && Date.now() < this.cooldownUntil;
+          if (code && !blocked) { this.paused = true; this.onDetect && this.onDetect(code); }
+        }
+      }
+      this.timer = setTimeout(tick, this.engine === "native" ? 90 : 140);
+    };
+    tick();
+  },
+
+  async detectNative() {
+    const found = await this.detector.detect(this.video);
+    return found.length ? found[0].rawValue : null;
+  },
+
+  detectZX() {
+    const v = this.video, vw = v.videoWidth, vh = v.videoHeight;
+    if (!vw || !vh) return null;
+    // Read the central band where the on-screen frame sits.
+    const sw = Math.round(vw * 0.9), sh = Math.round(vh * 0.5);
+    const sx = Math.round((vw - sw) / 2), sy = Math.round((vh - sh) / 2);
+    const scale = Math.min(1, 900 / sw);
+    const c = this.canvas; c.width = Math.round(sw * scale); c.height = Math.round(sh * scale);
+    const ctx = c.getContext("2d", { willReadFrequently: true });
+    ctx.drawImage(v, sx, sy, sw, sh, 0, 0, c.width, c.height);
+    const Z = window.ZXing;
+    try {
+      const bmp = new Z.BinaryBitmap(new Z.HybridBinarizer(new Z.HTMLCanvasElementLuminanceSource(c)));
+      return this.zx.decodeWithState(bmp).getText();
+    } catch (e) { return null; }
+  },
+};
+
+/* ---------- Barcode from a photo ---------- */
+function pickPhotoCode(onCode) {
+  const input = document.createElement("input");
+  input.type = "file"; input.accept = "image/*"; input.setAttribute("capture", "environment");
+  input.style.display = "none";
+  document.body.appendChild(input);
+  input.onchange = async () => {
+    const file = input.files && input.files[0];
+    input.remove();
+    if (!file) return;
+    toast("A procurar o código na foto…");
+    let code = null;
+    try { code = await decodePhoto(file); } catch (e) {}
+    if (code) onCode(cleanBarcode(code));
+    else toast("Não encontrei um código de barras na foto. Tente de novo, mais perto e com o código na horizontal.");
+  };
+  input.click();
+}
+
+async function decodePhoto(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
+    const engine = await Scanner.initEngine();
+    const tryCanvas = async (w, h, rotate) => {
+      const c = document.createElement("canvas");
+      c.width = rotate ? h : w; c.height = rotate ? w : h;
+      const ctx = c.getContext("2d", { willReadFrequently: true });
+      if (rotate) { ctx.translate(c.width, 0); ctx.rotate(Math.PI / 2); }
+      ctx.drawImage(img, 0, 0, w, h);
+      if (engine === "native") { const f = await Scanner.detector.detect(c); return f.length ? f[0].rawValue : null; }
+      const Z = window.ZXing;
+      try { return Scanner.zx.decodeWithState(new Z.BinaryBitmap(new Z.HybridBinarizer(new Z.HTMLCanvasElementLuminanceSource(c)))).getText(); }
+      catch (e) { return null; }
+    };
+    for (const max of [1600, 1000]) {
+      const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+      const w = Math.round(img.naturalWidth * k), h = Math.round(img.naturalHeight * k);
+      const found = (await tryCanvas(w, h, false)) || (await tryCanvas(w, h, true));
+      if (found) return found;
+    }
+    return null;
+  } finally { URL.revokeObjectURL(url); }
+}
+
+/* ---------- Rendering: tabs ---------- */
+const TITLES = { scan: "Contar", history: "Histórico", products: "Produtos" };
+
+function showTab(tab) {
+  state.tab = tab;
+  document.querySelectorAll(".tabs button").forEach(b => {
+    if (b.dataset.tab === tab) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
+  });
+  ["scan", "history", "products"].forEach(t => { $("#" + t).hidden = t !== tab; });
+  render();
+  syncCamera();
+}
+
+function render() {
+  $("#title").textContent = TITLES[state.tab];
+  $("#topmeta").textContent = state.tab === "scan" && state.session ? plural(state.counts.size, "contado", "contados") : "";
+  ({ scan: renderScan, history: renderHistory, products: renderProducts })[state.tab]();
+}
+
+function syncCamera() {
+  if (Scanner.captureHandler) {
+    if (document.hidden) Scanner.stop(); else if (Scanner.video) Scanner.start(Scanner.video);
+    return;
+  }
+  const video = $("#scan video");
+  const shouldRun = state.tab === "scan" && state.session && state.armed && $("#sheet").hidden && $("#modal").hidden && !document.hidden;
+  if (shouldRun && video) Scanner.start(video);
+  else if (state.tab !== "scan" || !state.session || document.hidden) Scanner.stop();
+  else Scanner.pause();
+}
+
+/* ---------- Scan view ---------- */
+function renderScan() {
+  const el = $("#scan");
+  if (!state.session) {
+    const last = state.completed[0];
+    el.innerHTML = `<div class="start">
+      <h2>Conte o que está nas prateleiras</h2>
+      <p>Leia o código de barras, indique o número de unidades e passe ao seguinte. Cada contagem fica guardada neste telemóvel.</p>
+      ${last ? `<p class="num">Último inventário: ${esc(fmtDay(last.startedAt))}, ${plural(last.productCount || 0, "produto", "produtos")}</p>` : ""}
+      <div class="grow"></div>
+      <div class="stack">
+        <button class="btn btn-primary" id="startBtn">Iniciar inventário</button>
+      </div></div>`;
+    $("#startBtn").onclick = async () => { await startSession(); state.armed = true; render(); syncCamera(); };
+    return;
+  }
+  if (!state.armed) {
+    el.innerHTML = `<div class="start">
+      <h2>Inventário em curso</h2>
+      <div class="resume-card num"><strong>${plural(state.counts.size, "produto contado", "produtos contados")}</strong>
+        <span>Iniciado ${esc(fmtStarted(state.session.startedAt))}</span></div>
+      <p>As contagens estão guardadas. Continue onde parou.</p>
+      <div class="grow"></div>
+      <div class="stack">
+        <button class="btn btn-primary" id="resumeBtn">Retomar inventário</button>
+        <button class="btn" id="reviewBtn">Ver contagens</button>
+      </div></div>`;
+    $("#resumeBtn").onclick = () => { state.armed = true; render(); syncCamera(); };
+    $("#reviewBtn").onclick = openCountsSheet;
+    return;
+  }
+  if (!$("#scan .camera")) {
+    el.innerHTML = `
+      <div class="camera">
+        <video playsinline muted autoplay poster="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"></video>
+        <div class="reticle" id="reticle"><div class="laser"></div></div>
+        <div class="camera-msg" id="cameraMsg" hidden></div>
+        <button class="cam-restart" id="restartBtn">Reiniciar câmara</button>
+      </div>
+      <div class="scan-status" id="scanStatus" aria-live="polite">A iniciar a câmara…</div>
+      <button class="tally" id="tallyBtn"></button>
+      <div class="scan-actions">
+        <button class="btn" id="typeBtn">Introduzir código</button>
+        <button class="btn btn-finish" id="finishBtn">Terminar inventário</button>
+      </div>`;
+    $("#typeBtn").onclick = openManualSheet;
+    $("#finishBtn").onclick = openFinishSheet;
+    $("#tallyBtn").onclick = openCountsSheet;
+    $("#restartBtn").onclick = () => { Scanner.status = "idle"; Scanner.restart(); };
+  }
+  paintTally();
+  paintScanStatus(Scanner.status);
+}
+
+function lastCount() {
+  let last = null;
+  state.counts.forEach(c => { if (!last || c.updatedAt > last.updatedAt) last = c; });
+  return last;
+}
+function paintTally() {
+  const t = $("#tallyBtn");
+  if (!t) return;
+  const last = lastCount();
+  t.innerHTML = `<span class="tally-main">${plural(state.counts.size, "produto contado", "produtos contados")}</span>
+    <span class="tally-sub">${last ? `Último: ${esc(last.productName)}, ${plural(last.quantity, "unidade", "unidades")}` : "Ainda nada contado"}</span>
+    <span class="tally-go">Ver lista</span>`;
+}
+
+function paintScanStatus(s, detail) {
+  const st = $("#scanStatus"), msg = $("#cameraMsg");
+  if (!st) return;
+  st.classList.remove("err");
+  msg.hidden = true;
+  const showMsg = (title, body) => {
+    msg.hidden = false;
+    msg.innerHTML = `<h2>${title}</h2><p>${body}</p><button class="btn btn-primary" id="msgPhoto">Fotografar código</button><button class="btn" id="msgType">Introduzir código à mão</button>`;
+    $("#msgType").onclick = openManualSheet;
+    $("#msgPhoto").onclick = () => pickPhotoCode(code => openCountSheet(code, "scan"));
+  };
+  if (s === "starting") st.textContent = "A iniciar a câmara…";
+  else if (s === "scanning") st.textContent = "Coloque o código de barras dentro da moldura";
+  else if (s === "denied") {
+    st.textContent = "Acesso à câmara desligado"; st.classList.add("err");
+    let framed = false; try { framed = window.top !== window.self; } catch (e) { framed = true; }
+    showMsg("O acesso à câmara está desligado", framed
+      ? "Este visualizador não deixa as páginas usar a câmara. Abra a aplicação no Chrome ou no Safari, no seu próprio endereço, para ler códigos. Pode continuar a contar introduzindo os códigos à mão."
+      : "Permita o acesso à câmara para esta página nas definições do browser e toque em Reiniciar câmara. Pode continuar a contar introduzindo os códigos à mão.");
+  } else if (s === "unavailable") {
+    st.textContent = "Leitura com a câmara indisponível"; st.classList.add("err");
+    showMsg("A leitura com a câmara não está disponível aqui",
+      detail === "insecure" ? "A câmara precisa de uma página segura (https). Abra a aplicação por https ou, por agora, introduza os códigos à mão."
+      : detail === "engine" ? "Não foi possível carregar o leitor de códigos. Verifique a ligação e toque em Reiniciar câmara, ou introduza os códigos à mão."
+      : "Este browser não consegue usar a câmara. Introduza os códigos à mão.");
+  } else if (s === "error" && detail === "timeout") {
+    st.textContent = "A câmara não respondeu"; st.classList.add("err");
+    showMsg("A câmara não respondeu", "Se apareceu um pedido de autorização, aceite-o. Se nada aparece, esta aplicação não tem acesso à câmara em direto: fotografe o código ou introduza-o à mão.");
+  } else if (s === "error") {
+    st.textContent = "A câmara parou"; st.classList.add("err");
+    showMsg("A câmara parou", "Toque em Reiniciar câmara. Se voltar a acontecer, feche outras aplicações que estejam a usar a câmara.");
+  } else st.textContent = "";
+}
+
+Scanner.onStatus = (s, d) => {
+  if (Scanner.captureHandler) { Scanner.captureStatus && Scanner.captureStatus(s, d); return; }
+  if (state.tab === "scan") paintScanStatus(s, d);
+};
+Scanner.onDetect = code => {
+  if (Scanner.captureHandler) {
+    try { navigator.vibrate && navigator.vibrate(40); } catch (e) {}
+    beep();
+    Scanner.captureHandler(code);
+    return;
+  }
+  if (!$("#sheet").hidden || !$("#modal").hidden) return;
+  try { navigator.vibrate && navigator.vibrate(40); } catch (e) {}
+  beep();
+  const r = $("#reticle");
+  if (r) { r.classList.add("hit"); setTimeout(() => r.classList.remove("hit"), 350); }
+  openCountSheet(code, "scan");
+};
+
+/* ---------- Sheets ---------- */
+function openSheet(html) {
+  Scanner.pause();
+  clearTimeout(toastTimer); $("#toast").classList.remove("show");
+  const sh = $("#sheet");
+  sh.innerHTML = `<div class="sheet-inner">${html}</div>`;
+  sh.hidden = false;
+}
+function stopCapture() {
+  if (!Scanner.captureHandler) return;
+  Scanner.captureHandler = null; Scanner.captureStatus = null;
+  Scanner.stop();
+}
+function closeSheet() {
+  stopCapture();
+  const sh = $("#sheet");
+  sh.hidden = true; sh.innerHTML = "";
+  document.onkeydown = null;
+}
+
+function afterSheet(cooldownCode) {
+  render();
+  if (state.tab === "scan" && state.armed && state.session) {
+    if (Scanner.stream) { Scanner.resume(cooldownCode); paintScanStatus("scanning"); }
+    else syncCamera();
+  }
+}
+
+// mode: "scan" (from scanner or typed barcode) | "edit" (from Current list)
+function openCountSheet(barcode, mode, onDone) {
+  barcode = cleanBarcode(barcode);
+  const product = state.products.get(barcode) || null;
+  const existing = state.counts.get(barcode) || null;
+  const isNew = !product && mode === "scan";
+  const name = product ? product.name : existing ? existing.productName : "";
+  const savedMin = product && typeof product.minStock === "number" ? product.minStock : null;
+  let value = "";                       // quantity typed
+  let minVal = savedMin === null ? "" : String(savedMin);
+  let minOpen = isNew;                  // minimum box visible
+  let minFresh = savedMin !== null;     // first digit replaces the saved minimum
+  let target = "qty";
+
+  const chip = !isNew && product
+    ? `<button class="min-chip" id="minChip">${savedMin === null ? "<u style='margin-left:0'>Definir mínimo</u>" : `Mínimo: <b>${plural(savedMin, "unidade", "unidades")}</b><u>alterar</u>`}</button>` : "";
+
+  openSheet(`
+    <div class="sheet-body">
+      <div class="product-card">
+        ${isNew ? `<div><span class="new-flag">Produto novo</span></div>` : `<h2>${esc(name)}</h2>`}
+        <div class="barcode">${esc(barcode)}</div>
+      </div>
+      ${isNew ? `<label class="field"><span>Nome do produto</span>
+        <input id="nameInput" type="text" autocomplete="off" autocapitalize="words" enterkeyhint="done" placeholder="ex.: Amoxicilina 500 mg"></label>` : ""}
+      ${existing ? `<div class="prev">Já contado: <b>${plural(existing.quantity, "unidade", "unidades")}</b>. O novo número substitui.</div>` : ""}
+      <div class="qty-row">
+        <div class="qty-col"><span class="box-label" id="qtyLabel">Unidades existentes</span>
+          <div class="qty-display empty active" id="qtyBox" role="button" tabindex="0" aria-labelledby="qtyLabel"><output id="qtyOut" class="placeholder" aria-live="polite">0</output><i class="caret" aria-hidden="true"></i></div></div>
+        <div class="min-col" id="minCol" ${minOpen ? "" : "hidden"}><span class="box-label" id="minLabel">Mínimo</span>
+          <button class="min-box empty" id="minBox" aria-labelledby="minLabel"><output id="minOut"></output><i class="caret" aria-hidden="true"></i><span class="min-ph" id="minPh">opcional</span></button></div>
+      </div>
+      ${chip}
+      <div class="hint" id="hint"></div>
+      <div class="keypad" id="keypad">
+        ${[1,2,3,4,5,6,7,8,9].map(n => `<button data-k="${n}">${n}</button>`).join("")}
+        <button class="fn" data-k="clear">Limpar</button><button data-k="0">0</button><button class="fn back" data-k="back" aria-label="Apagar"><svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12H5M11 5l-7 7 7 7"/></svg></button>
+      </div>
+      ${mode === "edit" ? `<button class="btn btn-quiet" id="removeBtn" style="margin-top:8px">Remover deste inventário</button>` : ""}
+    </div>
+    <div class="sheet-foot"><div class="foot-row"><button class="btn" id="cancelBtn">Cancelar</button><button class="btn btn-primary" id="saveBtn" disabled>${mode === "edit" ? "Guardar" : "Guardar e ler seguinte"}</button></div></div>`);
+
+  const nameInput = $("#nameInput");
+  const effectiveMin = () => (minOpen ? (minVal === "" ? null : parseInt(minVal, 10)) : savedMin);
+  const update = () => {
+    const qtyBox = $("#qtyBox"), minBox = $("#minBox");
+    $("#qtyOut").textContent = value === "" ? "0" : value;
+    $("#qtyOut").classList.toggle("placeholder", value === "");
+    qtyBox.classList.toggle("empty", value === "");
+    qtyBox.classList.toggle("active", target === "qty");
+    $("#minCol").hidden = !minOpen;
+    minBox.classList.toggle("active", target === "min");
+    $("#minOut").textContent = minVal;
+    minBox.classList.toggle("empty", minVal === "");
+    $("#minPh").hidden = minVal !== "";
+    const m = effectiveMin();
+    const short = value !== "" && m !== null && parseInt(value, 10) < m ? m - parseInt(value, 10) : 0;
+    qtyBox.classList.toggle("warn", short > 0);
+    const needName = isNew && !nameInput.value.trim();
+    $("#saveBtn").disabled = value === "" || needName;
+    const hint = $("#hint");
+    hint.classList.toggle("warn", short > 0);
+    hint.textContent = short > 0 ? `Abaixo do mínimo: faltam ${short}` : needName ? "Dê um nome ao produto" : "";
+  };
+  const edit = (cur, k, fresh) => {
+    if (k === "clear") return "";
+    if (k === "back") return fresh ? "" : cur.slice(0, -1);
+    if (fresh) return k;
+    if (cur.length >= 5) return cur;
+    return cur === "0" ? k : cur + k;
+  };
+  const press = k => {
+    if (target === "min") { minVal = edit(minVal, k, minFresh); minFresh = false; }
+    else value = edit(value, k, false);
+    update();
+  };
+  const focusMin = () => { minOpen = true; target = "min"; minFresh = minVal !== ""; const c = $("#minChip"); if (c) c.hidden = true; update(); };
+  $("#keypad").onclick = e => { const b = e.target.closest("button"); if (b) press(b.dataset.k); };
+  $("#qtyBox").onclick = () => { target = "qty"; update(); };
+  $("#minBox").onclick = focusMin;
+  const chipBtn = $("#minChip");
+  if (chipBtn) chipBtn.onclick = focusMin;
+  if (nameInput) {
+    nameInput.oninput = update;
+    nameInput.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); nameInput.blur(); } };
+    setTimeout(() => nameInput.focus(), 50);
+  }
+  document.onkeydown = e => {
+    if (e.target === nameInput || !$("#modal").hidden) return;
+    if (/^[0-9]$/.test(e.key)) { press(e.key); e.preventDefault(); }
+    else if (e.key === "Backspace") { press("back"); e.preventDefault(); }
+    else if (e.key === "Enter" && !$("#saveBtn").disabled) { e.preventDefault(); save(); }
+    else if (e.key === "Escape") cancel();
+  };
+  const finish = () => { closeSheet(); if (onDone) onDone(); else afterSheet(barcode); };
+  const cancel = finish;
+  const save = async () => {
+    if (value === "") return;
+    const qty = parseInt(value, 10);
+    if (!Number.isInteger(qty) || qty < 0) return;
+    const minNum = minVal === "" ? null : parseInt(minVal, 10);
+    $("#saveBtn").disabled = true;
+    try {
+      let p = state.products.get(barcode);
+      if (!p && isNew) p = await addProduct(barcode, nameInput.value.trim(), minNum);
+      else if (p && minOpen && minNum !== savedMin) await updateProduct(p, { minStock: minNum });
+      if (!p) p = { id: existing.productId, name: existing.productName, minStock: existing.minStock };
+      await saveCount(barcode, p, qty);
+      finish();
+      const m = minOf(p), short = m !== null && qty < m;
+      toast(`Guardado: ${p.name}, ${plural(qty, "unidade", "unidades")}${short ? " (abaixo do mínimo)" : ""}`, true);
+    } catch (err) {
+      $("#saveBtn").disabled = false;
+      $("#hint").textContent = "Não foi possível guardar neste dispositivo. Tente novamente.";
+    }
+  };
+  $("#cancelBtn").onclick = cancel;
+  $("#saveBtn").onclick = save;
+  const rm = $("#removeBtn");
+  if (rm) rm.onclick = async () => {
+    const ok = await confirmModal(`Remover ${esc(name)} deste inventário?`,
+      `A contagem de ${plural(existing.quantity, "unidade", "unidades")} é removida. O produto continua na sua lista.`, "Remover", "Cancelar");
+    if (!ok) return;
+    await removeCount(barcode); finish(); toast("Removido do inventário");
+  };
+  update();
+}
+
+function openManualSheet() {
+  openSheet(`
+    <div class="sheet-body">
+      <h2>Introduzir código</h2>
+      <label class="field"><span>Código de barras</span>
+        <input id="codeInput" type="text" inputmode="numeric" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go"></label>
+      <div class="field-error" id="codeErr"></div>
+    </div>
+    <div class="sheet-foot"><div class="foot-row"><button class="btn" id="cancelBtn">Cancelar</button><button class="btn btn-primary" id="goBtn">Procurar produto</button></div></div>`);
+  const input = $("#codeInput");
+  setTimeout(() => input.focus(), 50);
+  const go = () => {
+    const code = cleanBarcode(input.value);
+    if (!code) { $("#codeErr").textContent = "Introduza um código de barras"; return; }
+    closeSheet(); openCountSheet(code, "scan");
+  };
+  input.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); go(); } };
+  $("#goBtn").onclick = go;
+  $("#cancelBtn").onclick = () => { closeSheet(); afterSheet(); };
+}
+
+/* ---------- Counted so far (inside Scan) ---------- */
+function openCountsSheet() {
+  if (!state.session) return;
+  const rows = withMins([...state.counts.values()]).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  openSheet(`
+    <div class="sheet-body">
+      <h2>Contados até agora</h2>
+      <div class="barcode">Iniciado ${esc(fmtStarted(state.session.startedAt))}, ${plural(rows.length, "produto", "produtos")}</div>
+      ${rows.length ? `<ul class="list" style="margin-top:12px">${rows.map(r => `<li><button data-bc="${esc(r.barcode)}">
+          <span class="name">${esc(r.productName)}</span><span class="qty${shortOf(r) ? " warn" : ""}">${r.quantity}</span><span class="sub">${esc(r.barcode)}${shortOf(r) ? `, abaixo do mínimo (${minOf(r)})` : ""}</span>
+        </button></li>`).join("")}</ul><p class="note">Toque num produto para alterar a contagem.</p>`
+        : `<div class="empty"><strong>Ainda nada contado</strong>Leia um produto e ele aparece aqui.</div>`}
+    </div>
+    <div class="sheet-foot"><div class="foot-row even"><button class="btn" id="backScan">${state.armed ? "Voltar a ler" : "Voltar"}</button><button class="btn btn-finish" id="finishBtn2">Terminar inventário</button></div></div>`);
+  $("#sheet").querySelectorAll(".list button").forEach(b => b.onclick = () => openCountSheet(b.dataset.bc, "edit", openCountsSheet));
+  $("#backScan").onclick = () => { closeSheet(); afterSheet(); };
+  $("#finishBtn2").onclick = openFinishSheet;
+}
+
+function previewTable(session, rows) {
+  const date = localDate(session.startedAt);
+  const below = rows.filter(r => shortOf(r) > 0).length;
+  return `${below ? `<div class="below-sum"><b>${plural(below, "produto abaixo do mínimo", "produtos abaixo do mínimo")}</b>. ${below === 1 ? "Aparece" : "Aparecem"} primeiro, a laranja.</div>` : ""}
+    <div class="preview-wrap"><table class="preview"><thead><tr><th>Nome do produto</th><th class="q">Qtd.</th><th class="q">Mín.</th><th class="q">Em falta</th><th>Código de barras</th><th>Data</th></tr></thead>
+    <tbody>${rows.map(r => { const m = minOf(r), sh = shortOf(r); return `<tr${sh ? ' class="below"' : ""}><td>${esc(r.productName)}</td><td class="q">${r.quantity}</td><td class="q">${m === null ? "—" : m}</td><td class="q${sh ? " short" : ""}">${m === null ? "" : sh}</td><td>${esc(r.barcode)}</td><td>${date}</td></tr>`; }).join("")}</tbody></table></div>`;
+}
+
+function openFinishSheet() {
+  const s = state.session;
+  const rows = sortedCounts(withMins([...state.counts.values()]));
+  openSheet(`
+    <div class="sheet-body">
+      <h2>Terminar inventário</h2>
+      <div class="barcode">${esc(fmtDay(s.startedAt))}, ${plural(rows.length, "produto", "produtos")}</div>
+      ${rows.length ? previewTable(s, rows) : `<div class="empty"><strong>Nenhum produto contado</strong>Não há nada para exportar. Volte atrás e leia produtos, ou descarte este inventário.</div>`}
+    </div>
+    <div class="sheet-foot stack">
+      <button class="btn btn-primary" id="dlBtn" ${rows.length ? "" : "disabled"}>Descarregar CSV</button>
+      ${rows.length ? `<p class="note">Ao descarregar, o inventário fica terminado e é guardada uma cópia no Histórico.</p>` : ""}
+      <div class="row"><button class="btn" id="backBtn2">Voltar</button><button class="btn btn-danger" id="discardBtn">Descartar inventário</button></div>
+    </div>`);
+  $("#backBtn2").onclick = () => { closeSheet(); afterSheet(); };
+  $("#dlBtn").onclick = async () => {
+    $("#dlBtn").disabled = true;
+    const { session, rows: done } = await completeSession();
+    state.armed = false;
+    closeSheet();
+    showTab("history");
+    await downloadInventory(session, done);
+  };
+  $("#discardBtn").onclick = async () => {
+    const ok = await confirmModal("Tem a certeza de que quer eliminar este inventário?",
+      `${rows.length === 1 ? "A contagem deste inventário vai ser eliminada" : `As ${rows.length} contagens deste inventário vão ser eliminadas`} e não podem ser recuperadas. A sua lista de produtos mantém-se.`,
+      "Sim, eliminar inventário", "Cancelar", true);
+    if (!ok) return;
+    await discardSession();
+    state.armed = false;
+    closeSheet(); toast("Inventário eliminado"); showTab("scan");
+  };
+}
+
+/* ---------- History ---------- */
+function renderHistory() {
+  const el = $("#history");
+  const list = state.completed;
+  el.innerHTML = `<div class="pad">${list.length ? `<ul class="list">${list.map(s => `<li><button data-id="${esc(s.id)}">
+      <span class="name">${esc(fmtDay(s.startedAt))}</span><span class="qty" style="font-size:20px">${plural(s.productCount || 0, "produto", "produtos")}</span>
+      <span class="sub">Terminado às ${esc(fmtTime(s.completedAt))}</span></button></li>`).join("")}</ul>`
+    : `<div class="empty"><strong>Ainda não há inventários terminados</strong>Quando terminar um inventário, fica aqui guardado para o poder descarregar novamente.</div>`}</div>`;
+  el.querySelectorAll(".list button").forEach(b => b.onclick = () => openHistorySheet(b.dataset.id));
+}
+
+async function openHistorySheet(id) {
+  const s = state.completed.find(x => x.id === id);
+  const rows = sortedCounts(await DB.all("counts", "inventoryId", id));
+  openSheet(`
+    <div class="sheet-body">
+      <h2>${esc(fmtDay(s.startedAt))}</h2>
+      <div class="barcode">${plural(rows.length, "produto", "produtos")}, terminado às ${esc(fmtTime(s.completedAt))}</div>
+      ${previewTable(s, rows)}
+    </div>
+    <div class="sheet-foot"><div class="foot-row"><button class="btn" id="closeBtn">Fechar</button><button class="btn btn-primary" id="dlAgain">Descarregar CSV</button></div></div>`);
+  $("#closeBtn").onclick = () => closeSheet();
+  $("#dlAgain").onclick = () => downloadInventory(s, rows);
+}
+
+/* ---------- Products ---------- */
+function renderProducts() {
+  const el = $("#products");
+  const list = [...state.products.values()].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+  el.innerHTML = `<div class="pad">
+    <div class="section-actions"><button class="btn" id="addProd">Adicionar produto</button></div>
+    ${list.length ? `<ul class="list">${list.map(p => `<li><button data-bc="${esc(p.barcode)}">
+      <span class="name">${esc(p.name)}</span>${typeof p.minStock === "number" ? `<span class="qty minq">mín. ${p.minStock}</span>` : ""}<span class="sub">${esc(p.barcode)}</span></button></li>`).join("")}</ul>`
+    : `<div class="empty"><strong>Ainda não há produtos</strong>Os produtos são adicionados automaticamente quando lê um código de barras novo.</div>`}
+    </div>`;
+  $("#addProd").onclick = () => openProductSheet(null);
+  el.querySelectorAll(".list button").forEach(b => b.onclick = () => openProductSheet(state.products.get(b.dataset.bc)));
+}
+
+function openProductSheet(p) {
+  openSheet(`
+    <div class="sheet-body">
+      ${p ? `<div class="product-card"><h2>${esc(p.name)}</h2><div class="barcode">${esc(p.barcode)}</div></div>` : `<h2>Adicionar produto</h2>
+        <button class="btn btn-scan" id="capBtn" style="margin-top:12px">Ler código com a câmara</button>
+        <div class="capture" id="capture" hidden><video playsinline muted autoplay poster="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"></video><div class="reticle"><div class="laser"></div></div></div>
+        <div class="capture-status" id="capStatus" aria-live="polite"></div>
+        <button class="btn" id="photoBtn" hidden>Fotografar código</button>
+        <label class="field" style="margin-top:6px"><span>Código de barras</span>
+        <input id="bcInput" type="text" inputmode="numeric" autocomplete="off" spellcheck="false"></label>`}
+      <label class="field"><span>Nome do produto</span><input id="pnInput" type="text" autocomplete="off" autocapitalize="words" value="${p ? esc(p.name) : ""}"></label>
+      <label class="field"><span>Stock mínimo (opcional)</span><input id="minInput" type="text" inputmode="numeric" autocomplete="off" placeholder="ex.: 4" value="${p && typeof p.minStock === "number" ? p.minStock : ""}"></label>
+      <div class="field-error" id="pErr"></div>
+      ${p ? `<button class="btn btn-danger" id="delProd" style="margin-top:auto">Eliminar produto</button>` : ""}
+    </div>
+    <div class="sheet-foot"><div class="foot-row"><button class="btn" id="cancelBtn">Cancelar</button><button class="btn btn-primary" id="saveProd">${p ? "Guardar" : "Adicionar produto"}</button></div></div>`);
+  $("#cancelBtn").onclick = () => closeSheet();
+  const capBtn = $("#capBtn");
+  if (capBtn) capBtn.onclick = () => {
+    const box = $("#capture"), st = $("#capStatus");
+    const setSt = (t, err) => { st.textContent = t; st.classList.toggle("err", !!err); };
+    box.hidden = false; capBtn.hidden = true; $("#pErr").textContent = "";
+    Scanner.captureStatus = (s, d) => {
+      if (s === "starting") setSt("A iniciar a câmara…");
+      else if (s === "scanning") setSt("Coloque o código de barras dentro da moldura");
+      else if (s === "denied" || s === "unavailable" || s === "error") {
+        stopCapture(); box.hidden = true; capBtn.hidden = false;
+        setSt(s === "denied" ? "O acesso à câmara está desligado. Fotografe o código ou introduza-o à mão."
+          : "Não foi possível usar a câmara em direto. Fotografe o código ou introduza-o à mão.", true);
+        $("#photoBtn").hidden = false;
+      }
+    };
+    const gotCode = code => {
+      $("#bcInput").value = code;
+      const owner = state.products.get(code);
+      if (owner) { setSt(""); $("#pErr").textContent = `Este código já pertence a ${owner.name}`; }
+      else { setSt("Código lido"); $("#pErr").textContent = ""; $("#pnInput").focus(); }
+    };
+    $("#photoBtn").onclick = () => pickPhotoCode(gotCode);
+    Scanner.captureHandler = code => {
+      stopCapture();
+      box.hidden = true; capBtn.hidden = false; capBtn.textContent = "Ler outro código";
+      $("#bcInput").value = code;
+      const owner = state.products.get(code);
+      if (owner) { setSt(""); $("#pErr").textContent = `Este código já pertence a ${owner.name}`; }
+      else { setSt("Código lido"); $("#pnInput").focus(); }
+    };
+    Scanner.stop(); Scanner.status = "idle";
+    Scanner.start($("#capture video"));
+  };
+  $("#saveProd").onclick = async () => {
+    const name = $("#pnInput").value.trim();
+    const err = $("#pErr");
+    const minStock = parseMin($("#minInput").value);
+    if (Number.isNaN(minStock)) { err.textContent = "O stock mínimo tem de ser um número inteiro, ou ficar vazio"; return; }
+    if (p) {
+      if (!name) { err.textContent = "Introduza o nome do produto"; return; }
+      await updateProduct(p, { name, minStock });
+    } else {
+      const bc = cleanBarcode($("#bcInput").value);
+      if (!bc) { err.textContent = "Introduza um código de barras"; return; }
+      if (state.products.has(bc)) { err.textContent = `Este código já pertence a ${state.products.get(bc).name}`; return; }
+      if (!name) { err.textContent = "Introduza o nome do produto"; return; }
+      await addProduct(bc, name, minStock);
+    }
+    closeSheet(); toast(p ? "Produto guardado" : "Produto adicionado", true); render();
+  };
+  const del = $("#delProd");
+  if (del) del.onclick = async () => {
+    const ok = await confirmModal(`Eliminar ${esc(p.name)}?`,
+      `O código ${esc(p.barcode)} vai ser tratado como um produto novo da próxima vez que o ler. As contagens já guardadas mantêm-se.`,
+      "Eliminar produto", "Cancelar", true);
+    if (!ok) return;
+    await deleteProduct(p); closeSheet(); toast("Produto eliminado"); render();
+  };
+}
+
+/* ---------- Confirm modal ---------- */
+function confirmModal(title, body, yes, no, danger = false) {
+  return new Promise(resolve => {
+    const m = $("#modal");
+    m.innerHTML = `<div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="mTitle">
+      <h2 id="mTitle">${title}</h2><p>${body}</p>
+      <div class="stack"><button class="btn ${danger ? "btn-danger-solid" : "btn-primary"}" id="mYes">${esc(yes)}</button>
+      <button class="btn" id="mNo">${esc(no)}</button></div></div>`;
+    m.hidden = false;
+    const done = v => { m.hidden = true; m.innerHTML = ""; resolve(v); };
+    $("#mNo").onclick = () => done(false);
+    $("#mYes").onclick = () => done(true);
+    m.onclick = e => { if (e.target === m) done(false); };
+    $("#mNo").focus();
+  });
+}
+
+/* ---------- Boot ---------- */
+document.querySelector(".tabs").onclick = e => {
+  const b = e.target.closest("button[data-tab]");
+  if (b && $("#sheet").hidden) showTab(b.dataset.tab);
+};
+document.addEventListener("visibilitychange", () => { if (state.session || Scanner.captureHandler) syncCamera(); });
+
+// Offline support and "Instalar aplicação" when served from a real https site.
+if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+  window.addEventListener("load", () => { navigator.serviceWorker.register("sw.js").catch(() => {}); });
+}
+
+(async function boot() {
+  try { await loadAll(); }
+  catch (e) {
+    $("#scan").innerHTML = `<div class="pad"><div class="empty"><strong>O armazenamento não está disponível</strong>Este browser está a bloquear o armazenamento no dispositivo (a navegação privada pode fazer isto). Abra a aplicação numa janela normal do browser.</div></div>`;
+    return;
+  }
+  showTab("scan");
+})();
+</script>
+</body>
+</html>
