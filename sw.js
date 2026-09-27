@@ -1,5 +1,5 @@
 // Keeps the app working offline. Bump VERSION when you upload a new index.html.
-const VERSION = "contagem-v1-9";
+const VERSION = "contagem-v2-1";
 const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./icon-maskable-512.png",
   "https://cdn.jsdelivr.net/npm/@zxing/library@0.23.0/umd/index.min.js"];
 
