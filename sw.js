@@ -1,7 +1,8 @@
 // Keeps the app working offline. Bump VERSION when you upload a new index.html.
-const VERSION = "contagem-v2-1";
+const VERSION = "contagem-v2-4";
 const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./icon-maskable-512.png",
-  "https://cdn.jsdelivr.net/npm/@zxing/library@0.23.0/umd/index.min.js"];
+  "https://cdn.jsdelivr.net/npm/@zxing/library@0.23.0/umd/index.min.js",
+  "https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"];
 
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(VERSION).then(c => Promise.all(SHELL.map(u => c.add(u).catch(() => {})))).then(() => self.skipWaiting()));
