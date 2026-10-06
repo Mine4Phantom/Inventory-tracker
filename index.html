@@ -74,9 +74,9 @@ main { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: 
 main > section { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .pad { padding: 4px 18px 24px; }
 
-.tabs { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--line); background: var(--paper); }
+.tabs { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--line); background: var(--paper); }
 .tabs button {
-  height: 60px; border: 0; background: none; color: var(--muted); font-size: 16px; font-weight: 700;
+  height: 60px; border: 0; background: none; color: var(--muted); font-size: 15px; font-weight: 700; padding: 0 2px;
   position: relative;
 }
 .tabs button[aria-current="page"] { color: var(--ink); }
@@ -178,6 +178,20 @@ main > section { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scro
 .empty { padding: 28px 0; color: var(--muted); }
 .empty strong { display: block; color: var(--ink); font-size: 20px; margin-bottom: 4px; }
 .section-actions { margin: 4px 0 16px; }
+
+/* Settings */
+.set-list { border-top: 1px solid var(--line); margin-top: 4px; }
+.set-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 76px; padding: 12px 2px; border-bottom: 1px solid var(--line); }
+.set-text b { display: block; font-size: 18px; }
+.set-text small { display: block; margin-top: 2px; color: var(--muted); font-size: 14px; line-height: 1.35; }
+.seg { flex: none; display: flex; gap: 3px; padding: 3px; border-radius: 12px; background: var(--key); }
+.seg button { min-height: 44px; padding: 8px 14px; border: 0; border-radius: 10px; background: transparent; color: var(--muted); font-size: 16px; font-weight: 700; }
+.seg button[aria-checked="true"] { background: var(--accent); color: var(--accent-ink); }
+.switch { flex: none; position: relative; width: 64px; height: 38px; border: 0; border-radius: 999px; background: var(--key); }
+.switch::after { content: ""; position: absolute; top: 4px; left: 4px; width: 30px; height: 30px; border-radius: 50%; background: var(--muted); transition: transform 150ms ease-out; }
+.switch[aria-checked="true"] { background: var(--accent); }
+.switch[aria-checked="true"]::after { transform: translateX(26px); background: var(--accent-ink); }
+@media (prefers-reduced-motion: reduce) { .switch::after { transition: none; } }
 
 /* Sheets */
 .sheet {
@@ -312,11 +326,13 @@ table.preview td.q, table.preview th.q { text-align: right; }
     <section id="scan" aria-label="Contar"></section>
     <section id="history" aria-label="Histórico" hidden></section>
     <section id="products" aria-label="Produtos" hidden></section>
+    <section id="settings" aria-label="Definições" hidden></section>
   </main>
   <nav class="tabs" aria-label="Principal">
     <button data-tab="scan" aria-current="page">Contar</button>
     <button data-tab="history">Histórico</button>
     <button data-tab="products">Produtos</button>
+    <button data-tab="settings">Definições</button>
   </nav>
 </div>
 <div id="sheet" class="sheet" hidden role="dialog" aria-modal="true"></div>
@@ -333,10 +349,198 @@ const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString
 const nowISO = () => new Date().toISOString();
 const pad2 = n => String(n).padStart(2, "0");
 const localDate = iso => { const d = new Date(iso); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; };
-const fmtDay = iso => new Date(iso).toLocaleDateString("pt-PT", { day: "numeric", month: "short", year: "numeric" });
-const fmtTime = iso => new Date(iso).toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" });
-const fmtStarted = iso => `${new Date(iso).toLocaleDateString("pt-PT", { weekday: "short", day: "numeric", month: "short" })}, ${fmtTime(iso)}`;
-const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+/* ---------- Settings + language ---------- */
+const EN = {
+  "(abaixo do mínimo)": "(below minimum)",
+  "A contagem de {qty} é removida. O produto continua na sua lista.": "The count of {qty} will be removed. The product stays in your list.",
+  "A contagem deste inventário vai ser eliminada e não pode ser recuperada. A sua lista de produtos mantém-se.": "The count in this inventory will be deleted and can't be recovered. Your product list is kept.",
+  "A câmara não respondeu": "The camera didn't respond",
+  "A câmara parou": "The camera stopped",
+  "A iniciar a câmara…": "Starting camera…",
+  "A leitura com a câmara não está disponível aqui": "Camera scanning isn't available here",
+  "A procurar o código na foto…": "Looking for the barcode in the photo…",
+  "A transferência não começou neste dispositivo. O inventário fica guardado no Histórico.": "The download didn't start on this device. The inventory is kept in History.",
+  "Abaixo do mínimo: faltam {n}": "Below minimum: {n} short",
+  "Acesso à câmara desligado": "Camera access is off",
+  "Adicionar produto": "Add product",
+  "Ainda nada contado": "Nothing counted yet",
+  "Ainda não há inventários terminados": "No finished inventories yet",
+  "Ainda não há produtos": "No products yet",
+  "Apagar": "Delete",
+  "As contagens estão guardadas. Continue onde parou.": "Your counts are saved. Pick up where you left off.",
+  "As {n} contagens deste inventário vão ser eliminadas e não podem ser recuperadas. A sua lista de produtos mantém-se.": "The {n} counts in this inventory will be deleted and can't be recovered. Your product list is kept.",
+  "Cancelar": "Cancel",
+  "Coloque o código de barras dentro da moldura": "Hold a barcode inside the frame",
+  "Contados até agora": "Counted so far",
+  "Conte o que está nas prateleiras": "Count what's on the shelves",
+  "Código de barras": "Barcode",
+  "Código lido": "Barcode read",
+  "Data": "Date",
+  "Data do inventário": "Inventory date",
+  "Definir mínimo": "Set minimum",
+  "Descarregar Excel": "Download Excel",
+  "Descartar inventário": "Discard inventory",
+  "Dê um nome ao produto": "Give the product a name",
+  "Eliminar produto": "Delete product",
+  "Eliminar {name}?": "Delete {name}?",
+  "Em falta": "Short",
+  "Este browser está a bloquear o armazenamento no dispositivo (a navegação privada pode fazer isto). Abra a aplicação numa janela normal do browser.": "This browser is blocking on-device storage (private browsing can do this). Open the app in a normal browser window.",
+  "Este browser não consegue usar a câmara. Introduza os códigos à mão.": "This browser can't use the camera. Type barcodes instead.",
+  "Este código já pertence a {name}": "This barcode already belongs to {name}",
+  "Este telemóvel não partilha ficheiros Excel diretamente. Foi descarregado: envie-o a partir das Transferências.": "This phone can't share Excel files directly. It was downloaded instead: send it from your Downloads.",
+  "Este visualizador não deixa as páginas usar a câmara. Abra a aplicação no Chrome ou no Safari, no seu próprio endereço, para ler códigos. Pode continuar a contar introduzindo os códigos à mão.": "This viewer doesn't let pages use the camera. Open the app in Chrome or Safari at its own address to scan. You can keep counting by typing barcodes.",
+  "Fechar": "Close",
+  "Ficheiro Excel descarregado": "Excel file downloaded",
+  "Fotografar código": "Photograph barcode",
+  "Guardado:": "Saved:",
+  "Guardar": "Save",
+  "Guardar e ler seguinte": "Save & scan next",
+  "Iniciado": "Started",
+  "Iniciar inventário": "Start inventory",
+  "Introduza o nome do produto": "Enter the product name",
+  "Introduza um código de barras": "Enter a barcode",
+  "Introduzir código": "Type barcode",
+  "Introduzir código à mão": "Type barcode instead",
+  "Inventário": "Inventory",
+  "Inventário eliminado": "Inventory deleted",
+  "Inventário em curso": "Inventory in progress",
+  "Inventário guardado no Histórico": "Inventory saved to History",
+  "Já contado:": "Already counted:",
+  "Leia o código de barras, indique o número de unidades e passe ao seguinte. Cada contagem fica guardada neste telemóvel.": "Scan a barcode, enter the number of units, move on. Every count is saved on this phone as you go.",
+  "Leia um produto e ele aparece aqui.": "Scan a product and it shows up here.",
+  "Leitura com a câmara indisponível": "Camera scanning unavailable",
+  "Ler código com a câmara": "Scan barcode with camera",
+  "Ler outro código": "Scan another barcode",
+  "Limpar": "Clear",
+  "Linhas a laranja: produtos abaixo do stock mínimo.": "Orange rows: products below minimum stock.",
+  "Mín.": "Min.",
+  "Mínimo": "Minimum",
+  "Mínimo:": "Minimum:",
+  "Nenhum produto contado": "No products counted",
+  "Nome do produto": "Product name",
+  "Não encontrei um código de barras na foto. Tente de novo, mais perto e com o código na horizontal.": "No barcode found in the photo. Try again, closer, with the barcode horizontal.",
+  "Não foi possível carregar o leitor de códigos. Verifique a ligação e toque em Reiniciar câmara, ou introduza os códigos à mão.": "The barcode reader couldn't load. Check your connection and tap Restart camera, or type barcodes.",
+  "Não foi possível criar o ficheiro Excel. Verifique a ligação à internet e tente de novo.": "Couldn't create the Excel file. Check your internet connection and try again.",
+  "Não foi possível guardar neste dispositivo. Tente novamente.": "Couldn't save on this device. Try again.",
+  "Não foi possível partilhar nem descarregar neste dispositivo.": "Couldn't share or download on this device.",
+  "Não foi possível partilhar. Tente de novo ou use Descarregar Excel.": "Couldn't share. Try again or use Download Excel.",
+  "Não foi possível usar a câmara em direto. Fotografe o código ou introduza-o à mão.": "The live camera isn't available. Photograph the barcode or type it in.",
+  "Não há nada para exportar. Volte atrás e leia produtos, ou descarte este inventário.": "There's nothing to export. Go back and scan products, or discard this inventory.",
+  "O acesso à câmara está desligado": "Camera access is off",
+  "O acesso à câmara está desligado. Fotografe o código ou introduza-o à mão.": "Camera access is off. Photograph the barcode or type it in.",
+  "O armazenamento não está disponível": "Storage isn't available",
+  "O código {code} vai ser tratado como um produto novo da próxima vez que o ler. As contagens já guardadas mantêm-se.": "Barcode {code} will be treated as a new product the next time you scan it. Counts already saved are kept.",
+  "O novo número substitui.": "A new number replaces it.",
+  "O stock mínimo tem de ser um número inteiro, ou ficar vazio": "Minimum stock must be a whole number, or left empty",
+  "Os produtos são adicionados automaticamente quando lê um código de barras novo.": "Products are added automatically when you scan a new barcode.",
+  "Partilhar": "Share",
+  "Permita o acesso à câmara para esta página nas definições do browser e toque em Reiniciar câmara. Pode continuar a contar introduzindo os códigos à mão.": "Allow camera access for this page in your browser settings, then tap Restart camera. You can keep counting by typing barcodes.",
+  "Principal": "Main",
+  "Procurar produto": "Find product",
+  "Produto adicionado": "Product added",
+  "Produto eliminado": "Product deleted",
+  "Produto guardado": "Product saved",
+  "Produto novo": "New product",
+  "Qtd.": "Qty",
+  "Quando terminar um inventário, fica aqui guardado para o poder descarregar novamente.": "When you finish an inventory, it's kept here so you can download it again.",
+  "Quantidade": "Quantity",
+  "Reiniciar câmara": "Restart camera",
+  "Remover": "Remove",
+  "Remover deste inventário": "Remove from this inventory",
+  "Remover {name} deste inventário?": "Remove {name} from this inventory?",
+  "Removido do inventário": "Removed from inventory",
+  "Retomar inventário": "Resume inventory",
+  "Sim, eliminar inventário": "Yes, delete inventory",
+  "Stock mínimo": "Minimum stock",
+  "Stock mínimo (opcional)": "Minimum stock (optional)",
+  "Tem a certeza de que quer eliminar este inventário?": "Are you sure you want to delete this inventory?",
+  "Termina o inventário e abre-o no Histórico, onde o pode partilhar ou descarregar.": "Finishes the inventory and opens it in History, where you can share or download it.",
+  "Terminado às": "Finished at",
+  "Terminar inventário": "Finish inventory",
+  "Toque num produto para alterar a contagem.": "Tap a product to change its count.",
+  "Transferência cancelada. O inventário continua no Histórico.": "Download cancelled. The inventory is still in History.",
+  "Unidades existentes": "Units in stock",
+  "Ver contagens": "Review counts",
+  "Ver lista": "View list",
+  "Voltar": "Back",
+  "Voltar a ler": "Back to scanning",
+  "abaixo do mínimo": "below minimum",
+  "alterar": "change",
+  "contado": "counted",
+  "contados": "counted",
+  "ex.: 4": "e.g. 4",
+  "ex.: Amoxicilina 500 mg": "e.g. Amoxicillin 500 mg",
+  "mín.": "min.",
+  "opcional": "optional",
+  "produto": "product",
+  "produto abaixo do mínimo": "product below minimum",
+  "produto contado": "product counted",
+  "produtos": "products",
+  "produtos abaixo do mínimo": "products below minimum",
+  "produtos contados": "products counted",
+  "terminado às": "finished at",
+  "unidade": "unit",
+  "unidades": "units",
+  "Último inventário:": "Last inventory:",
+  "Último:": "Last:",
+  "Contar": "Count",
+  "Histórico": "History",
+  "Produtos": "Products",
+  "Definições": "Settings",
+  "Aparece primeiro, a laranja.": "It's listed first, in orange.",
+  "Aparecem primeiro, a laranja.": "They're listed first, in orange.",
+  "A câmara precisa de uma página segura (https). Abra a aplicação por https ou, por agora, introduza os códigos à mão.": "The camera needs a secure (https) page. Open the app over https, or type barcodes for now.",
+  "Se apareceu um pedido de autorização, aceite-o. Se nada aparece, esta aplicação não tem acesso à câmara em direto: fotografe o código ou introduza-o à mão.": "If a permission prompt appeared, accept it. If nothing appears, this app has no live camera access: photograph the barcode or type it in.",
+  "Toque em Reiniciar câmara. Se voltar a acontecer, feche outras aplicações que estejam a usar a câmara.": "Tap Restart camera. If it keeps happening, close other apps that use the camera.",
+  "Aspeto": "Appearance",
+  "Escuro": "Dark",
+  "Claro": "Light",
+  "Idioma": "Language",
+  "Som ao ler código": "Sound when scanning",
+  "Vibração ao ler código": "Vibration when scanning",
+  "Um bipe curto quando um código é reconhecido.": "A short beep when a barcode is recognised.",
+  "Uma vibração curta quando um código é reconhecido. Nem todos os telemóveis suportam.": "A short vibration when a barcode is recognised. Not every phone supports this.",
+  "Ligado": "On",
+  "Desligado": "Off",
+  "Versão": "Version",
+  "Importar do Excel": "Import from Excel",
+  "Importar": "Import",
+  "Também pode importá-los de um Excel exportado por esta aplicação.": "You can also import them from an Excel file this app exported.",
+  "A ler o ficheiro…": "Reading the file…",
+  "Não foi possível ler este ficheiro. Escolha um Excel (.xlsx) exportado por esta aplicação.": "Couldn't read this file. Choose an Excel file (.xlsx) exported by this app.",
+  "Não encontrei as colunas Nome do produto e Código de barras neste Excel.": "Couldn't find the Product name and Barcode columns in this Excel file.",
+  "Todos os produtos deste Excel já estão na sua lista.": "All products in this Excel file are already in your list.",
+  "Este Excel não tem produtos.": "This Excel file has no products.",
+  "Importar {n}?": "Import {n}?",
+  "1 produto já existe na sua lista e não é alterado.": "1 product is already in your list and won't be changed.",
+  "{k} produtos já existem na sua lista e não são alterados.": "{k} products are already in your list and won't be changed.",
+  "São importados o nome, o código de barras e o stock mínimo. As quantidades não são importadas.": "Name, barcode and minimum stock are imported. Quantities are not.",
+  "produto importado": "product imported",
+  "produtos importados": "products imported"
+  };
+
+const SETTINGS_KEY = "contagem-settings";
+const settings = { theme: "dark", lang: "pt", sound: true, vibrate: false };
+try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}")); } catch (e) {}
+const LOCALE = () => (settings.lang === "en" ? "en-GB" : "pt-PT");
+const t = str => (settings.lang === "en" && Object.prototype.hasOwnProperty.call(EN, str) ? EN[str] : str);
+const tf = (str, vars) => t(str).replace(/\{(\w+)\}/g, (_, k) => (vars[k] ?? ""));
+function applyTheme() {
+  document.documentElement.dataset.theme = settings.theme;
+  document.documentElement.lang = settings.lang === "en" ? "en" : "pt-PT";
+  const m = document.querySelector('meta[name="theme-color"]');
+  if (m) m.content = settings.theme === "dark" ? "#0F1D20" : "#F3F6F4";
+}
+async function saveSettings() {
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) {}
+  try { await DB.put("meta", { key: "settings", value: { ...settings } }); } catch (e) {}
+}
+
+const fmtDay = iso => new Date(iso).toLocaleDateString(LOCALE(), { day: "numeric", month: "short", year: "numeric" });
+const fmtTime = iso => new Date(iso).toLocaleTimeString(LOCALE(), { hour: "2-digit", minute: "2-digit" });
+const fmtStarted = iso => `${new Date(iso).toLocaleDateString(LOCALE(), { weekday: "short", day: "numeric", month: "short" })}, ${fmtTime(iso)}`;
+const plural = (n, one, many) => `${n} ${t(n === 1 ? one : many)}`;
+applyTheme();
 const cleanBarcode = v => String(v ?? "").trim();
 
 /* ---------- IndexedDB ---------- */
@@ -407,6 +611,9 @@ async function loadAll() {
       s.meta.put({ key: "seeded", value: true });
     });
   }
+  const saved = await DB.get("meta", "settings");
+  if (saved && saved.value) Object.assign(settings, saved.value);
+  applyTheme();
   const products = await DB.all("products");
   state.products = new Map(products.map(p => [String(p.barcode), p]));
   const sessions = await DB.all("sessions");
@@ -492,61 +699,135 @@ const withMins = rows => rows.map(r => {
   const p = state.products.get(r.barcode);
   return p ? { ...r, minStock: typeof p.minStock === "number" ? p.minStock : null } : r;
 });
-const byName = (a, b) => a.productName.localeCompare(b.productName, "pt-PT", { sensitivity: "base" });
+const byName = (a, b) => a.productName.localeCompare(b.productName, LOCALE(), { sensitivity: "base" });
 const sortedCounts = rows => rows.slice().sort((a, b) => (shortOf(b) > 0) - (shortOf(a) > 0) || shortOf(b) - shortOf(a) || byName(a, b));
 const parseMin = v => { v = String(v ?? "").trim(); if (v === "") return null; return /^\d{1,5}$/.test(v) ? parseInt(v, 10) : NaN; };
 
-/* ---------- CSV + download ---------- */
-function csvCell(v) {
-  const s = String(v ?? "");
-  return /[",\r\n]/.test(s) || /^\s|\s$/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
-function buildCSV(session, rows) {
-  const date = localDate(session.startedAt);
-  const lines = [["Nome do produto", "Código de barras", "Quantidade", "Stock mínimo", "Em falta", "Data do inventário"].join(",")];
-  rows.forEach(r => {
-    const m = minOf(r);
-    lines.push([r.productName, String(r.barcode), r.quantity, m === null ? "" : m, m === null ? "" : shortOf(r), date].map(csvCell).join(","));
+/* ---------- Excel export + download ---------- */
+const EXCELJS_URL = "https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js";
+const XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+let excelLib = null;
+function loadExcel() {
+  if (window.ExcelJS) return Promise.resolve(window.ExcelJS);
+  if (!excelLib) excelLib = new Promise((resolve, reject) => {
+    const sc = document.createElement("script");
+    sc.src = EXCELJS_URL;
+    sc.onload = () => resolve(window.ExcelJS);
+    sc.onerror = () => { excelLib = null; reject(new Error("excel")); };
+    document.head.appendChild(sc);
   });
-  return "\uFEFF" + lines.join("\r\n") + "\r\n";
+  return excelLib;
 }
+const fileName = session => `${settings.lang === "en" ? "inventory" : "inventario"}-${localDate(session.startedAt)}.xlsx`;
+
+async function buildXLSX(session, rows) {
+  const ExcelJS = await loadExcel();
+  const [y, mo, d] = localDate(session.startedAt).split("-").map(Number);
+  const invDate = new Date(Date.UTC(y, mo - 1, d));
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "Contagem de stock";
+  const ws = wb.addWorksheet(`${t("Inventário")} ${localDate(session.startedAt)}`, {
+    views: [{ state: "frozen", ySplit: 1 }],
+    pageSetup: { orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9 },
+  });
+  const longest = rows.reduce((m, r) => Math.max(m, r.productName.length), 0);
+  ws.columns = [
+    { header: t("Nome do produto"), key: "name", width: Math.min(60, Math.max(24, longest + 4)) },
+    { header: t("Quantidade"), key: "qty", width: 13 },
+    { header: t("Stock mínimo"), key: "min", width: 15 },
+    { header: t("Em falta"), key: "short", width: 11 },
+    { header: t("Código de barras"), key: "code", width: 19 },
+    { header: t("Data do inventário"), key: "date", width: 19 },
+  ];
+  const font = { name: "Arial", size: 11 };
+  const header = ws.getRow(1);
+  header.height = 22;
+  header.eachCell(c => {
+    c.font = { name: "Arial", size: 11, bold: true, color: { argb: "FFFFFFFF" } };
+    c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF10262B" } };
+    c.alignment = { vertical: "middle", horizontal: c.col >= 2 && c.col <= 4 || c.col === 6 ? "center" : "left", indent: c.col === 1 || c.col === 5 ? 1 : 0 };
+  });
+  let below = 0;
+  rows.forEach((r, i) => {
+    const n = i + 2, m = minOf(r), sh = shortOf(r);
+    const row = ws.addRow({
+      name: r.productName,
+      qty: r.quantity,
+      min: m === null ? null : m,
+      short: m === null ? null : { formula: `MAX(0,C${n}-B${n})`, result: sh },
+      code: String(r.barcode),
+      date: invDate,
+    });
+    row.eachCell({ includeEmpty: true }, c => {
+      c.font = font;
+      c.alignment = { vertical: "middle", horizontal: c.col >= 2 && c.col <= 4 || c.col === 6 ? "center" : "left", indent: c.col === 1 || c.col === 5 ? 1 : 0 };
+    });
+    row.getCell("code").numFmt = "@";
+    row.getCell("date").numFmt = "dd/mm/yyyy";
+    if (sh > 0) {
+      below++;
+      row.eachCell({ includeEmpty: true }, c => { c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFEDD5" } }; });
+      row.getCell("short").font = { name: "Arial", size: 11, bold: true, color: { argb: "FFC2410C" } };
+    }
+  });
+  ws.getColumn(6).width = 19;
+  ws.autoFilter = { from: "A1", to: `F${rows.length + 1}` };
+  if (below) {
+    const note = ws.getCell(`A${rows.length + 3}`);
+    note.value = t("Linhas a laranja: produtos abaixo do stock mínimo.");
+    note.font = { name: "Arial", size: 10, italic: true, color: { argb: "FF56696C" } };
+  }
+  const buf = await wb.xlsx.writeBuffer();
+  return new Blob([buf], { type: XLSX_TYPE });
+}
+
 const downloadsCap = (window.claude && typeof window.claude.use === "function")
   ? window.claude.use("downloads").catch(() => null) : Promise.resolve(null);
 
-async function saveFile(filename, text) {
+async function saveFile(filename, blob) {
   const dl = await downloadsCap;
   if (dl) {
-    try { await dl.save({ filename, data: text }); return true; }
+    try { await dl.save({ filename, data: blob }); return true; }
     catch (e) { return e && e.code === "declined" ? "declined" : false; }
   }
   try {
-    const url = URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" }));
+    const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 4000);
     return true;
   } catch (e) { return false; }
 }
-const csvName = session => `inventario-${localDate(session.startedAt)}.csv`;
-function canShareFiles() {
-  try {
-    return !!(navigator.canShare && navigator.share &&
-      navigator.canShare({ files: [new File(["x"], "teste.csv", { type: "text/csv" })] }));
-  } catch (e) { return false; }
+
+async function downloadInventory(session, blobPromise) {
+  let blob;
+  try { blob = await blobPromise; }
+  catch (e) { toast(t("Não foi possível criar o ficheiro Excel. Verifique a ligação à internet e tente de novo.")); return; }
+  const r = await saveFile(fileName(session), blob);
+  if (r === true) toast(t("Ficheiro Excel descarregado"), true);
+  else if (r === "declined") toast(t("Transferência cancelada. O inventário continua no Histórico."));
+  else toast(t("A transferência não começou neste dispositivo. O inventário fica guardado no Histórico."));
 }
-async function shareInventory(session, rows) {
-  const file = new File([buildCSV(session, rows)], csvName(session), { type: "text/csv" });
-  try {
-    await navigator.share({ files: [file], title: `Inventário ${fmtDay(session.startedAt)}` });
-  } catch (e) {
-    if (!e || e.name !== "AbortError") toast("Não foi possível partilhar neste dispositivo. Use Descarregar CSV.");
+
+async function shareInventory(session, blobPromise) {
+  let blob;
+  try { blob = await blobPromise; }
+  catch (e) { toast(t("Não foi possível criar o ficheiro Excel. Verifique a ligação à internet e tente de novo.")); return; }
+  const file = new File([blob], fileName(session), { type: XLSX_TYPE });
+  let ok = false;
+  try { ok = !!(navigator.share && navigator.canShare && navigator.canShare({ files: [file] })); } catch (e) {}
+  if (!ok) {
+    // Some phones won't hand Excel files to the share menu: save it instead so it can be sent from Transferências.
+    const r = await saveFile(fileName(session), blob);
+    toast(r === true ? t("Este telemóvel não partilha ficheiros Excel diretamente. Foi descarregado: envie-o a partir das Transferências.")
+      : t("Não foi possível partilhar nem descarregar neste dispositivo."));
+    return;
   }
-}
-async function downloadInventory(session, rows) {
-  const r = await saveFile(csvName(session), buildCSV(session, rows));
-  if (r === true) toast("CSV descarregado", true);
-  else if (r === "declined") toast("Transferência cancelada. O inventário continua no Histórico.");
-  else toast("A transferência não começou neste dispositivo. O inventário fica guardado no Histórico.");
+  try { await navigator.share({ files: [file], title: `${t("Inventário")} ${fmtDay(session.startedAt)}` }); }
+  catch (e) {
+    if (e && e.name === "AbortError") return;
+    toast(t("Não foi possível partilhar. Tente de novo ou use Descarregar Excel."));
+  }
 }
 
 /* ---------- Feedback ---------- */
@@ -566,9 +847,9 @@ function beep() {
 }
 let toastTimer;
 function toast(msg, ok = false) {
-  const t = $("#toast");
-  t.textContent = msg; t.className = "toast show" + (ok ? " ok" : "");
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.className = "toast" + (ok ? " ok" : ""); }, 2200);
+  const el = $("#toast");
+  el.textContent = msg; el.className = "toast show" + (ok ? " ok" : "");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { el.className = "toast" + (ok ? " ok" : ""); }, 2200);
 }
 
 /* ---------- Scanner ---------- */
@@ -712,11 +993,11 @@ function pickPhotoCode(onCode) {
     const file = input.files && input.files[0];
     input.remove();
     if (!file) return;
-    toast("A procurar o código na foto…");
+    toast(t("A procurar o código na foto…"));
     let code = null;
     try { code = await decodePhoto(file); } catch (e) {}
     if (code) onCode(cleanBarcode(code));
-    else toast("Não encontrei um código de barras na foto. Tente de novo, mais perto e com o código na horizontal.");
+    else toast(t("Não encontrei um código de barras na foto. Tente de novo, mais perto e com o código na horizontal."));
   };
   input.click();
 }
@@ -748,22 +1029,25 @@ async function decodePhoto(file) {
 }
 
 /* ---------- Rendering: tabs ---------- */
-const TITLES = { scan: "Contar", history: "Histórico", products: "Produtos" };
+const TITLES = { scan: "Contar", history: "Histórico", products: "Produtos", settings: "Definições" };
 
 function showTab(tab) {
   state.tab = tab;
   document.querySelectorAll(".tabs button").forEach(b => {
     if (b.dataset.tab === tab) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
   });
-  ["scan", "history", "products"].forEach(t => { $("#" + t).hidden = t !== tab; });
+  ["scan", "history", "products", "settings"].forEach(t => { $("#" + t).hidden = t !== tab; });
   render();
   syncCamera();
 }
 
 function render() {
-  $("#title").textContent = TITLES[state.tab];
+  $("#title").textContent = t(TITLES[state.tab]);
+  document.querySelectorAll(".tabs button[data-tab]").forEach(b => { b.textContent = t(TITLES[b.dataset.tab]); });
+  ["scan", "history", "products", "settings"].forEach(id => $("#" + id).setAttribute("aria-label", t(TITLES[id])));
+  $(".tabs").setAttribute("aria-label", t("Principal"));
   $("#topmeta").textContent = state.tab === "scan" && state.session ? plural(state.counts.size, "contado", "contados") : "";
-  ({ scan: renderScan, history: renderHistory, products: renderProducts })[state.tab]();
+  ({ scan: renderScan, history: renderHistory, products: renderProducts, settings: renderSettings })[state.tab]();
 }
 
 function syncCamera() {
@@ -784,26 +1068,26 @@ function renderScan() {
   if (!state.session) {
     const last = state.completed[0];
     el.innerHTML = `<div class="start">
-      <h2>Conte o que está nas prateleiras</h2>
-      <p>Leia o código de barras, indique o número de unidades e passe ao seguinte. Cada contagem fica guardada neste telemóvel.</p>
-      ${last ? `<p class="num">Último inventário: ${esc(fmtDay(last.startedAt))}, ${plural(last.productCount || 0, "produto", "produtos")}</p>` : ""}
+      <h2>${t("Conte o que está nas prateleiras")}</h2>
+      <p>${t("Leia o código de barras, indique o número de unidades e passe ao seguinte. Cada contagem fica guardada neste telemóvel.")}</p>
+      ${last ? `<p class="num">${t("Último inventário:")} ${esc(fmtDay(last.startedAt))}, ${plural(last.productCount || 0, "produto", "produtos")}</p>` : ""}
       <div class="grow"></div>
       <div class="stack">
-        <button class="btn btn-primary" id="startBtn">Iniciar inventário</button>
+        <button class="btn btn-primary" id="startBtn">${t("Iniciar inventário")}</button>
       </div></div>`;
     $("#startBtn").onclick = async () => { await startSession(); state.armed = true; render(); syncCamera(); };
     return;
   }
   if (!state.armed) {
     el.innerHTML = `<div class="start">
-      <h2>Inventário em curso</h2>
+      <h2>${t("Inventário em curso")}</h2>
       <div class="resume-card num"><strong>${plural(state.counts.size, "produto contado", "produtos contados")}</strong>
-        <span>Iniciado ${esc(fmtStarted(state.session.startedAt))}</span></div>
-      <p>As contagens estão guardadas. Continue onde parou.</p>
+        <span>${t("Iniciado")} ${esc(fmtStarted(state.session.startedAt))}</span></div>
+      <p>${t("As contagens estão guardadas. Continue onde parou.")}</p>
       <div class="grow"></div>
       <div class="stack">
-        <button class="btn btn-primary" id="resumeBtn">Retomar inventário</button>
-        <button class="btn" id="reviewBtn">Ver contagens</button>
+        <button class="btn btn-primary" id="resumeBtn">${t("Retomar inventário")}</button>
+        <button class="btn" id="reviewBtn">${t("Ver contagens")}</button>
       </div></div>`;
     $("#resumeBtn").onclick = () => { state.armed = true; render(); syncCamera(); };
     $("#reviewBtn").onclick = openCountsSheet;
@@ -815,13 +1099,13 @@ function renderScan() {
         <video playsinline muted autoplay poster="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"></video>
         <div class="reticle" id="reticle"><div class="laser"></div></div>
         <div class="camera-msg" id="cameraMsg" hidden></div>
-        <button class="cam-restart" id="restartBtn">Reiniciar câmara</button>
+        <button class="cam-restart" id="restartBtn">${t("Reiniciar câmara")}</button>
       </div>
-      <div class="scan-status" id="scanStatus" aria-live="polite">A iniciar a câmara…</div>
+      <div class="scan-status" id="scanStatus" aria-live="polite">${t("A iniciar a câmara…")}</div>
       <button class="tally" id="tallyBtn"></button>
       <div class="scan-actions">
-        <button class="btn" id="typeBtn">Introduzir código</button>
-        <button class="btn btn-finish" id="finishBtn">Terminar inventário</button>
+        <button class="btn" id="typeBtn">${t("Introduzir código")}</button>
+        <button class="btn btn-finish" id="finishBtn">${t("Terminar inventário")}</button>
       </div>`;
     $("#typeBtn").onclick = openManualSheet;
     $("#finishBtn").onclick = openFinishSheet;
@@ -838,12 +1122,12 @@ function lastCount() {
   return last;
 }
 function paintTally() {
-  const t = $("#tallyBtn");
-  if (!t) return;
+  const tb = $("#tallyBtn");
+  if (!tb) return;
   const last = lastCount();
-  t.innerHTML = `<span class="tally-main">${plural(state.counts.size, "produto contado", "produtos contados")}</span>
-    <span class="tally-sub">${last ? `Último: ${esc(last.productName)}, ${plural(last.quantity, "unidade", "unidades")}` : "Ainda nada contado"}</span>
-    <span class="tally-go">Ver lista</span>`;
+  tb.innerHTML = `<span class="tally-main">${plural(state.counts.size, "produto contado", "produtos contados")}</span>
+    <span class="tally-sub">${last ? `${t("Último:")} ${esc(last.productName)}, ${plural(last.quantity, "unidade", "unidades")}` : t("Ainda nada contado")}</span>
+    <span class="tally-go">${t("Ver lista")}</span>`;
 }
 
 function paintScanStatus(s, detail) {
@@ -853,29 +1137,29 @@ function paintScanStatus(s, detail) {
   msg.hidden = true;
   const showMsg = (title, body) => {
     msg.hidden = false;
-    msg.innerHTML = `<h2>${title}</h2><p>${body}</p><button class="btn btn-primary" id="msgPhoto">Fotografar código</button><button class="btn" id="msgType">Introduzir código à mão</button>`;
+    msg.innerHTML = `<h2>${t(title)}</h2><p>${t(body)}</p><button class="btn btn-primary" id="msgPhoto">${t("Fotografar código")}</button><button class="btn" id="msgType">${t("Introduzir código à mão")}</button>`;
     $("#msgType").onclick = openManualSheet;
     $("#msgPhoto").onclick = () => pickPhotoCode(code => openCountSheet(code, "scan"));
   };
-  if (s === "starting") st.textContent = "A iniciar a câmara…";
-  else if (s === "scanning") st.textContent = "Coloque o código de barras dentro da moldura";
+  if (s === "starting") st.textContent = t("A iniciar a câmara…");
+  else if (s === "scanning") st.textContent = t("Coloque o código de barras dentro da moldura");
   else if (s === "denied") {
-    st.textContent = "Acesso à câmara desligado"; st.classList.add("err");
+    st.textContent = t("Acesso à câmara desligado"); st.classList.add("err");
     let framed = false; try { framed = window.top !== window.self; } catch (e) { framed = true; }
     showMsg("O acesso à câmara está desligado", framed
       ? "Este visualizador não deixa as páginas usar a câmara. Abra a aplicação no Chrome ou no Safari, no seu próprio endereço, para ler códigos. Pode continuar a contar introduzindo os códigos à mão."
       : "Permita o acesso à câmara para esta página nas definições do browser e toque em Reiniciar câmara. Pode continuar a contar introduzindo os códigos à mão.");
   } else if (s === "unavailable") {
-    st.textContent = "Leitura com a câmara indisponível"; st.classList.add("err");
+    st.textContent = t("Leitura com a câmara indisponível"); st.classList.add("err");
     showMsg("A leitura com a câmara não está disponível aqui",
       detail === "insecure" ? "A câmara precisa de uma página segura (https). Abra a aplicação por https ou, por agora, introduza os códigos à mão."
       : detail === "engine" ? "Não foi possível carregar o leitor de códigos. Verifique a ligação e toque em Reiniciar câmara, ou introduza os códigos à mão."
       : "Este browser não consegue usar a câmara. Introduza os códigos à mão.");
   } else if (s === "error" && detail === "timeout") {
-    st.textContent = "A câmara não respondeu"; st.classList.add("err");
+    st.textContent = t("A câmara não respondeu"); st.classList.add("err");
     showMsg("A câmara não respondeu", "Se apareceu um pedido de autorização, aceite-o. Se nada aparece, esta aplicação não tem acesso à câmara em direto: fotografe o código ou introduza-o à mão.");
   } else if (s === "error") {
-    st.textContent = "A câmara parou"; st.classList.add("err");
+    st.textContent = t("A câmara parou"); st.classList.add("err");
     showMsg("A câmara parou", "Toque em Reiniciar câmara. Se voltar a acontecer, feche outras aplicações que estejam a usar a câmara.");
   } else st.textContent = "";
 }
@@ -886,14 +1170,14 @@ Scanner.onStatus = (s, d) => {
 };
 Scanner.onDetect = code => {
   if (Scanner.captureHandler) {
-    try { navigator.vibrate && navigator.vibrate(40); } catch (e) {}
-    beep();
+    if (settings.vibrate) { try { navigator.vibrate && navigator.vibrate(40); } catch (e) {} }
+    if (settings.sound) beep();
     Scanner.captureHandler(code);
     return;
   }
   if (!$("#sheet").hidden || !$("#modal").hidden) return;
-  try { navigator.vibrate && navigator.vibrate(40); } catch (e) {}
-  beep();
+  if (settings.vibrate) { try { navigator.vibrate && navigator.vibrate(40); } catch (e) {} }
+  if (settings.sound) beep();
   const r = $("#reticle");
   if (r) { r.classList.add("hit"); setTimeout(() => r.classList.remove("hit"), 350); }
   openCountSheet(code, "scan");
@@ -942,32 +1226,32 @@ function openCountSheet(barcode, mode, onDone) {
   let target = "qty";
 
   const chip = !isNew && product
-    ? `<button class="min-chip" id="minChip">${savedMin === null ? "<u style='margin-left:0'>Definir mínimo</u>" : `Mínimo: <b>${plural(savedMin, "unidade", "unidades")}</b><u>alterar</u>`}</button>` : "";
+    ? `<button class="min-chip" id="minChip">${savedMin === null ? `<u style='margin-left:0'>${t("Definir mínimo")}</u>` : `${t("Mínimo:")} <b>${plural(savedMin, "unidade", "unidades")}</b><u>${t("alterar")}</u>`}</button>` : "";
 
   openSheet(`
     <div class="sheet-body">
       <div class="product-card">
-        ${isNew ? `<div><span class="new-flag">Produto novo</span></div>` : `<h2>${esc(name)}</h2>`}
+        ${isNew ? `<div><span class="new-flag">${t("Produto novo")}</span></div>` : `<h2>${esc(name)}</h2>`}
         <div class="barcode">${esc(barcode)}</div>
       </div>
-      ${isNew ? `<label class="field"><span>Nome do produto</span>
-        <input id="nameInput" type="text" autocomplete="off" autocapitalize="words" enterkeyhint="done" placeholder="ex.: Amoxicilina 500 mg"></label>` : ""}
-      ${existing ? `<div class="prev">Já contado: <b>${plural(existing.quantity, "unidade", "unidades")}</b>. O novo número substitui.</div>` : ""}
+      ${isNew ? `<label class="field"><span>${t("Nome do produto")}</span>
+        <input id="nameInput" type="text" autocomplete="off" autocapitalize="words" enterkeyhint="done" placeholder="${t("ex.: Amoxicilina 500 mg")}"></label>` : ""}
+      ${existing ? `<div class="prev">${t("Já contado:")} <b>${plural(existing.quantity, "unidade", "unidades")}</b>. ${t("O novo número substitui.")}</div>` : ""}
       <div class="qty-row">
-        <div class="qty-col"><span class="box-label" id="qtyLabel">Unidades existentes</span>
+        <div class="qty-col"><span class="box-label" id="qtyLabel">${t("Unidades existentes")}</span>
           <div class="qty-display empty active" id="qtyBox" role="button" tabindex="0" aria-labelledby="qtyLabel"><output id="qtyOut" class="placeholder" aria-live="polite">0</output><i class="caret" aria-hidden="true"></i></div></div>
-        <div class="min-col" id="minCol" ${minOpen ? "" : "hidden"}><span class="box-label" id="minLabel">Mínimo</span>
-          <button class="min-box empty" id="minBox" aria-labelledby="minLabel"><output id="minOut"></output><i class="caret" aria-hidden="true"></i><span class="min-ph" id="minPh">opcional</span></button></div>
+        <div class="min-col" id="minCol" ${minOpen ? "" : "hidden"}><span class="box-label" id="minLabel">${t("Mínimo")}</span>
+          <button class="min-box empty" id="minBox" aria-labelledby="minLabel"><output id="minOut"></output><i class="caret" aria-hidden="true"></i><span class="min-ph" id="minPh">${t("opcional")}</span></button></div>
       </div>
       ${chip}
       <div class="hint" id="hint"></div>
       <div class="keypad" id="keypad">
         ${[1,2,3,4,5,6,7,8,9].map(n => `<button data-k="${n}">${n}</button>`).join("")}
-        <button class="fn" data-k="clear">Limpar</button><button data-k="0">0</button><button class="fn back" data-k="back" aria-label="Apagar"><svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12H5M11 5l-7 7 7 7"/></svg></button>
+        <button class="fn" data-k="clear">${t("Limpar")}</button><button data-k="0">0</button><button class="fn back" data-k="back" aria-label="${t("Apagar")}"><svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12H5M11 5l-7 7 7 7"/></svg></button>
       </div>
-      ${mode === "edit" ? `<button class="btn btn-quiet" id="removeBtn" style="margin-top:8px">Remover deste inventário</button>` : ""}
+      ${mode === "edit" ? `<button class="btn btn-quiet" id="removeBtn" style="margin-top:8px">${t("Remover deste inventário")}</button>` : ""}
     </div>
-    <div class="sheet-foot"><div class="foot-row"><button class="btn" id="cancelBtn">Cancelar</button><button class="btn btn-primary" id="saveBtn" disabled>${mode === "edit" ? "Guardar" : "Guardar e ler seguinte"}</button></div></div>`);
+    <div class="sheet-foot"><div class="foot-row"><button class="btn" id="cancelBtn">${t("Cancelar")}</button><button class="btn btn-primary" id="saveBtn" disabled>${mode === "edit" ? t("Guardar") : t("Guardar e ler seguinte")}</button></div></div>`);
 
   const nameInput = $("#nameInput");
   const effectiveMin = () => (minOpen ? (minVal === "" ? null : parseInt(minVal, 10)) : savedMin);
@@ -989,7 +1273,7 @@ function openCountSheet(barcode, mode, onDone) {
     $("#saveBtn").disabled = value === "" || needName;
     const hint = $("#hint");
     hint.classList.toggle("warn", short > 0);
-    hint.textContent = short > 0 ? `Abaixo do mínimo: faltam ${short}` : needName ? "Dê um nome ao produto" : "";
+    hint.textContent = short > 0 ? tf("Abaixo do mínimo: faltam {n}", { n: short }) : needName ? t("Dê um nome ao produto") : "";
   };
   const edit = (cur, k, fresh) => {
     if (k === "clear") return "";
@@ -1037,20 +1321,20 @@ function openCountSheet(barcode, mode, onDone) {
       await saveCount(barcode, p, qty);
       finish();
       const m = minOf(p), short = m !== null && qty < m;
-      toast(`Guardado: ${p.name}, ${plural(qty, "unidade", "unidades")}${short ? " (abaixo do mínimo)" : ""}`, true);
+      toast(`${t("Guardado:")} ${p.name}, ${plural(qty, "unidade", "unidades")}${short ? " " + t("(abaixo do mínimo)") : ""}`, true);
     } catch (err) {
       $("#saveBtn").disabled = false;
-      $("#hint").textContent = "Não foi possível guardar neste dispositivo. Tente novamente.";
+      $("#hint").textContent = t("Não foi possível guardar neste dispositivo. Tente novamente.");
     }
   };
   $("#cancelBtn").onclick = cancel;
   $("#saveBtn").onclick = save;
   const rm = $("#removeBtn");
   if (rm) rm.onclick = async () => {
-    const ok = await confirmModal(`Remover ${esc(name)} deste inventário?`,
-      `A contagem de ${plural(existing.quantity, "unidade", "unidades")} é removida. O produto continua na sua lista.`, "Remover", "Cancelar");
+    const ok = await confirmModal(tf("Remover {name} deste inventário?", { name: esc(name) }),
+      tf("A contagem de {qty} é removida. O produto continua na sua lista.", { qty: plural(existing.quantity, "unidade", "unidades") }), t("Remover"), t("Cancelar"));
     if (!ok) return;
-    await removeCount(barcode); finish(); toast("Removido do inventário");
+    await removeCount(barcode); finish(); toast(t("Removido do inventário"));
   };
   update();
 }
@@ -1058,17 +1342,17 @@ function openCountSheet(barcode, mode, onDone) {
 function openManualSheet() {
   openSheet(`
     <div class="sheet-body">
-      <h2>Introduzir código</h2>
-      <label class="field"><span>Código de barras</span>
+      <h2>${t("Introduzir código")}</h2>
+      <label class="field"><span>${t("Código de barras")}</span>
         <input id="codeInput" type="text" inputmode="numeric" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go"></label>
       <div class="field-error" id="codeErr"></div>
     </div>
-    <div class="sheet-foot"><div class="foot-row"><button class="btn" id="cancelBtn">Cancelar</button><button class="btn btn-primary" id="goBtn">Procurar produto</button></div></div>`);
+    <div class="sheet-foot"><div class="foot-row"><button class="btn" id="cancelBtn">${t("Cancelar")}</button><button class="btn btn-primary" id="goBtn">${t("Procurar produto")}</button></div></div>`);
   const input = $("#codeInput");
   setTimeout(() => input.focus(), 50);
   const go = () => {
     const code = cleanBarcode(input.value);
-    if (!code) { $("#codeErr").textContent = "Introduza um código de barras"; return; }
+    if (!code) { $("#codeErr").textContent = t("Introduza um código de barras"); return; }
     closeSheet(); openCountSheet(code, "scan");
   };
   input.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); go(); } };
@@ -1082,14 +1366,14 @@ function openCountsSheet() {
   const rows = withMins([...state.counts.values()]).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   openSheet(`
     <div class="sheet-body">
-      <h2>Contados até agora</h2>
-      <div class="barcode">Iniciado ${esc(fmtStarted(state.session.startedAt))}, ${plural(rows.length, "produto", "produtos")}</div>
+      <h2>${t("Contados até agora")}</h2>
+      <div class="barcode">${t("Iniciado")} ${esc(fmtStarted(state.session.startedAt))}, ${plural(rows.length, "produto", "produtos")}</div>
       ${rows.length ? `<ul class="list" style="margin-top:12px">${rows.map(r => `<li><button data-bc="${esc(r.barcode)}">
-          <span class="name">${esc(r.productName)}</span><span class="qty${shortOf(r) ? " warn" : ""}">${r.quantity}</span><span class="sub">${esc(r.barcode)}${shortOf(r) ? `, abaixo do mínimo (${minOf(r)})` : ""}</span>
-        </button></li>`).join("")}</ul><p class="note">Toque num produto para alterar a contagem.</p>`
-        : `<div class="empty"><strong>Ainda nada contado</strong>Leia um produto e ele aparece aqui.</div>`}
+          <span class="name">${esc(r.productName)}</span><span class="qty${shortOf(r) ? " warn" : ""}">${r.quantity}</span><span class="sub">${esc(r.barcode)}${shortOf(r) ? `, ${t("abaixo do mínimo")} (${minOf(r)})` : ""}</span>
+        </button></li>`).join("")}</ul><p class="note">${t("Toque num produto para alterar a contagem.")}</p>`
+        : `<div class="empty"><strong>${t("Ainda nada contado")}</strong>${t("Leia um produto e ele aparece aqui.")}</div>`}
     </div>
-    <div class="sheet-foot"><div class="foot-row even"><button class="btn" id="backScan">${state.armed ? "Voltar a ler" : "Voltar"}</button><button class="btn btn-finish" id="finishBtn2">Terminar inventário</button></div></div>`);
+    <div class="sheet-foot"><div class="foot-row even"><button class="btn" id="backScan">${state.armed ? t("Voltar a ler") : t("Voltar")}</button><button class="btn btn-finish" id="finishBtn2">${t("Terminar inventário")}</button></div></div>`);
   $("#sheet").querySelectorAll(".list button").forEach(b => b.onclick = () => openCountSheet(b.dataset.bc, "edit", openCountsSheet));
   $("#backScan").onclick = () => { closeSheet(); afterSheet(); };
   $("#finishBtn2").onclick = openFinishSheet;
@@ -1098,8 +1382,8 @@ function openCountsSheet() {
 function previewTable(session, rows) {
   const date = localDate(session.startedAt);
   const below = rows.filter(r => shortOf(r) > 0).length;
-  return `${below ? `<div class="below-sum"><b>${plural(below, "produto abaixo do mínimo", "produtos abaixo do mínimo")}</b>. ${below === 1 ? "Aparece" : "Aparecem"} primeiro, a laranja.</div>` : ""}
-    <div class="preview-wrap"><table class="preview"><thead><tr><th>Nome do produto</th><th class="q">Qtd.</th><th class="q">Mín.</th><th class="q">Em falta</th><th>Código de barras</th><th>Data</th></tr></thead>
+  return `${below ? `<div class="below-sum"><b>${plural(below, "produto abaixo do mínimo", "produtos abaixo do mínimo")}</b>. ${t(below === 1 ? "Aparece primeiro, a laranja." : "Aparecem primeiro, a laranja.")}</div>` : ""}
+    <div class="preview-wrap"><table class="preview"><thead><tr><th>${t("Nome do produto")}</th><th class="q">${t("Qtd.")}</th><th class="q">${t("Mín.")}</th><th class="q">${t("Em falta")}</th><th>${t("Código de barras")}</th><th>${t("Data")}</th></tr></thead>
     <tbody>${rows.map(r => { const m = minOf(r), sh = shortOf(r); return `<tr${sh ? ' class="below"' : ""}><td>${esc(r.productName)}</td><td class="q">${r.quantity}</td><td class="q">${m === null ? "—" : m}</td><td class="q${sh ? " short" : ""}">${m === null ? "" : sh}</td><td>${esc(r.barcode)}</td><td>${date}</td></tr>`; }).join("")}</tbody></table></div>`;
 }
 
@@ -1108,14 +1392,14 @@ function openFinishSheet() {
   const rows = sortedCounts(withMins([...state.counts.values()]));
   openSheet(`
     <div class="sheet-body">
-      <h2>Terminar inventário</h2>
+      <h2>${t("Terminar inventário")}</h2>
       <div class="barcode">${esc(fmtDay(s.startedAt))}, ${plural(rows.length, "produto", "produtos")}</div>
-      ${rows.length ? previewTable(s, rows) : `<div class="empty"><strong>Nenhum produto contado</strong>Não há nada para exportar. Volte atrás e leia produtos, ou descarte este inventário.</div>`}
+      ${rows.length ? previewTable(s, rows) : `<div class="empty"><strong>${t("Nenhum produto contado")}</strong>${t("Não há nada para exportar. Volte atrás e leia produtos, ou descarte este inventário.")}</div>`}
     </div>
     <div class="sheet-foot stack">
-      <button class="btn btn-primary" id="saveInvBtn" ${rows.length ? "" : "disabled"}>Guardar</button>
-      ${rows.length ? `<p class="note">Termina o inventário e abre-o no Histórico, onde o pode partilhar ou descarregar.</p>` : ""}
-      <div class="row"><button class="btn" id="backBtn2">Voltar</button><button class="btn btn-danger" id="discardBtn">Descartar inventário</button></div>
+      <button class="btn btn-primary" id="saveInvBtn" ${rows.length ? "" : "disabled"}>${t("Guardar")}</button>
+      ${rows.length ? `<p class="note">${t("Termina o inventário e abre-o no Histórico, onde o pode partilhar ou descarregar.")}</p>` : ""}
+      <div class="row"><button class="btn" id="backBtn2">${t("Voltar")}</button><button class="btn btn-danger" id="discardBtn">${t("Descartar inventário")}</button></div>
     </div>`);
   $("#backBtn2").onclick = () => { closeSheet(); afterSheet(); };
   $("#saveInvBtn").onclick = async () => {
@@ -1125,16 +1409,17 @@ function openFinishSheet() {
     closeSheet();
     showTab("history");
     await openHistorySheet(session.id);
-    toast("Inventário guardado no Histórico", true);
+    toast(t("Inventário guardado no Histórico"), true);
   };
   $("#discardBtn").onclick = async () => {
-    const ok = await confirmModal("Tem a certeza de que quer eliminar este inventário?",
-      `${rows.length === 1 ? "A contagem deste inventário vai ser eliminada" : `As ${rows.length} contagens deste inventário vão ser eliminadas`} e não podem ser recuperadas. A sua lista de produtos mantém-se.`,
-      "Sim, eliminar inventário", "Cancelar", true);
+    const ok = await confirmModal(t("Tem a certeza de que quer eliminar este inventário?"),
+      rows.length === 1 ? t("A contagem deste inventário vai ser eliminada e não pode ser recuperada. A sua lista de produtos mantém-se.")
+        : tf("As {n} contagens deste inventário vão ser eliminadas e não podem ser recuperadas. A sua lista de produtos mantém-se.", { n: rows.length }),
+      t("Sim, eliminar inventário"), t("Cancelar"), true);
     if (!ok) return;
     await discardSession();
     state.armed = false;
-    closeSheet(); toast("Inventário eliminado"); showTab("scan");
+    closeSheet(); toast(t("Inventário eliminado")); showTab("scan");
   };
 }
 
@@ -1144,8 +1429,8 @@ function renderHistory() {
   const list = state.completed;
   el.innerHTML = `<div class="pad">${list.length ? `<ul class="list">${list.map(s => `<li><button data-id="${esc(s.id)}">
       <span class="name">${esc(fmtDay(s.startedAt))}</span><span class="qty" style="font-size:20px">${plural(s.productCount || 0, "produto", "produtos")}</span>
-      <span class="sub">Terminado às ${esc(fmtTime(s.completedAt))}</span></button></li>`).join("")}</ul>`
-    : `<div class="empty"><strong>Ainda não há inventários terminados</strong>Quando terminar um inventário, fica aqui guardado para o poder descarregar novamente.</div>`}</div>`;
+      <span class="sub">${t("Terminado às")} ${esc(fmtTime(s.completedAt))}</span></button></li>`).join("")}</ul>`
+    : `<div class="empty"><strong>${t("Ainda não há inventários terminados")}</strong>${t("Quando terminar um inventário, fica aqui guardado para o poder descarregar novamente.")}</div>`}</div>`;
   el.querySelectorAll(".list button").forEach(b => b.onclick = () => openHistorySheet(b.dataset.id));
 }
 
@@ -1155,19 +1440,19 @@ async function openHistorySheet(id) {
   openSheet(`
     <div class="sheet-body">
       <h2>${esc(fmtDay(s.startedAt))}</h2>
-      <div class="barcode">${plural(rows.length, "produto", "produtos")}, terminado às ${esc(fmtTime(s.completedAt))}</div>
+      <div class="barcode">${plural(rows.length, "produto", "produtos")}, ${t("terminado às")} ${esc(fmtTime(s.completedAt))}</div>
       ${previewTable(s, rows)}
     </div>
     <div class="sheet-foot stack">
-      ${canShareFiles()
-        ? `<div class="row"><button class="btn btn-primary" id="shareBtn">Partilhar</button><button class="btn" id="dlAgain">Descarregar CSV</button></div>`
-        : `<button class="btn btn-primary" id="dlAgain">Descarregar CSV</button>`}
-      <button class="btn" id="closeBtn">Fechar</button>
+      <div class="row"><button class="btn btn-primary" id="shareBtn">${t("Partilhar")}</button><button class="btn" id="dlAgain">${t("Descarregar Excel")}</button></div>
+      <button class="btn" id="closeBtn">${t("Fechar")}</button>
     </div>`);
   $("#closeBtn").onclick = () => closeSheet();
-  $("#dlAgain").onclick = () => downloadInventory(s, rows);
-  const sh = $("#shareBtn");
-  if (sh) sh.onclick = () => shareInventory(s, rows);
+  // Build the Excel file as soon as the inventory opens, so Partilhar opens the share menu straight away.
+  const file = buildXLSX(s, rows);
+  file.catch(() => {});
+  $("#dlAgain").onclick = () => downloadInventory(s, file);
+  $("#shareBtn").onclick = () => shareInventory(s, file);
 }
 
 /* ---------- Products ---------- */
@@ -1175,31 +1460,32 @@ function renderProducts() {
   const el = $("#products");
   const list = [...state.products.values()].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
   el.innerHTML = `<div class="pad">
-    <div class="section-actions"><button class="btn" id="addProd">Adicionar produto</button></div>
+    <div class="section-actions row"><button class="btn" id="addProd">${t("Adicionar produto")}</button><button class="btn" id="importProd">${t("Importar do Excel")}</button></div>
     ${list.length ? `<ul class="list">${list.map(p => `<li><button data-bc="${esc(p.barcode)}">
-      <span class="name">${esc(p.name)}</span>${typeof p.minStock === "number" ? `<span class="qty minq">mín. ${p.minStock}</span>` : ""}<span class="sub">${esc(p.barcode)}</span></button></li>`).join("")}</ul>`
-    : `<div class="empty"><strong>Ainda não há produtos</strong>Os produtos são adicionados automaticamente quando lê um código de barras novo.</div>`}
+      <span class="name">${esc(p.name)}</span>${typeof p.minStock === "number" ? `<span class="qty minq">${t("mín.")} ${p.minStock}</span>` : ""}<span class="sub">${esc(p.barcode)}</span></button></li>`).join("")}</ul>`
+    : `<div class="empty"><strong>${t("Ainda não há produtos")}</strong>${t("Os produtos são adicionados automaticamente quando lê um código de barras novo.")} ${t("Também pode importá-los de um Excel exportado por esta aplicação.")}</div>`}
     </div>`;
   $("#addProd").onclick = () => openProductSheet(null);
+  $("#importProd").onclick = pickImportFile;
   el.querySelectorAll(".list button").forEach(b => b.onclick = () => openProductSheet(state.products.get(b.dataset.bc)));
 }
 
 function openProductSheet(p) {
   openSheet(`
     <div class="sheet-body">
-      ${p ? `<div class="product-card"><h2>${esc(p.name)}</h2><div class="barcode">${esc(p.barcode)}</div></div>` : `<h2>Adicionar produto</h2>
-        <button class="btn btn-scan" id="capBtn" style="margin-top:12px">Ler código com a câmara</button>
+      ${p ? `<div class="product-card"><h2>${esc(p.name)}</h2><div class="barcode">${esc(p.barcode)}</div></div>` : `<h2>${t("Adicionar produto")}</h2>
+        <button class="btn btn-scan" id="capBtn" style="margin-top:12px">${t("Ler código com a câmara")}</button>
         <div class="capture" id="capture" hidden><video playsinline muted autoplay poster="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"></video><div class="reticle"><div class="laser"></div></div></div>
         <div class="capture-status" id="capStatus" aria-live="polite"></div>
-        <button class="btn" id="photoBtn" hidden>Fotografar código</button>
-        <label class="field" style="margin-top:6px"><span>Código de barras</span>
+        <button class="btn" id="photoBtn" hidden>${t("Fotografar código")}</button>
+        <label class="field" style="margin-top:6px"><span>${t("Código de barras")}</span>
         <input id="bcInput" type="text" inputmode="numeric" autocomplete="off" spellcheck="false"></label>`}
-      <label class="field"><span>Nome do produto</span><input id="pnInput" type="text" autocomplete="off" autocapitalize="words" value="${p ? esc(p.name) : ""}"></label>
-      <label class="field"><span>Stock mínimo (opcional)</span><input id="minInput" type="text" inputmode="numeric" autocomplete="off" placeholder="ex.: 4" value="${p && typeof p.minStock === "number" ? p.minStock : ""}"></label>
+      <label class="field"><span>${t("Nome do produto")}</span><input id="pnInput" type="text" autocomplete="off" autocapitalize="words" value="${p ? esc(p.name) : ""}"></label>
+      <label class="field"><span>${t("Stock mínimo (opcional)")}</span><input id="minInput" type="text" inputmode="numeric" autocomplete="off" placeholder="${t("ex.: 4")}" value="${p && typeof p.minStock === "number" ? p.minStock : ""}"></label>
       <div class="field-error" id="pErr"></div>
-      ${p ? `<button class="btn btn-danger" id="delProd" style="margin-top:auto">Eliminar produto</button>` : ""}
+      ${p ? `<button class="btn btn-danger" id="delProd" style="margin-top:auto">${t("Eliminar produto")}</button>` : ""}
     </div>
-    <div class="sheet-foot"><div class="foot-row"><button class="btn" id="cancelBtn">Cancelar</button><button class="btn btn-primary" id="saveProd">${p ? "Guardar" : "Adicionar produto"}</button></div></div>`);
+    <div class="sheet-foot"><div class="foot-row"><button class="btn" id="cancelBtn">${t("Cancelar")}</button><button class="btn btn-primary" id="saveProd">${p ? t("Guardar") : t("Adicionar produto")}</button></div></div>`);
   $("#cancelBtn").onclick = () => closeSheet();
   const capBtn = $("#capBtn");
   if (capBtn) capBtn.onclick = () => {
@@ -1207,29 +1493,29 @@ function openProductSheet(p) {
     const setSt = (t, err) => { st.textContent = t; st.classList.toggle("err", !!err); };
     box.hidden = false; capBtn.hidden = true; $("#pErr").textContent = "";
     Scanner.captureStatus = (s, d) => {
-      if (s === "starting") setSt("A iniciar a câmara…");
-      else if (s === "scanning") setSt("Coloque o código de barras dentro da moldura");
+      if (s === "starting") setSt(t("A iniciar a câmara…"));
+      else if (s === "scanning") setSt(t("Coloque o código de barras dentro da moldura"));
       else if (s === "denied" || s === "unavailable" || s === "error") {
         stopCapture(); box.hidden = true; capBtn.hidden = false;
-        setSt(s === "denied" ? "O acesso à câmara está desligado. Fotografe o código ou introduza-o à mão."
-          : "Não foi possível usar a câmara em direto. Fotografe o código ou introduza-o à mão.", true);
+        setSt(s === "denied" ? t("O acesso à câmara está desligado. Fotografe o código ou introduza-o à mão.")
+          : t("Não foi possível usar a câmara em direto. Fotografe o código ou introduza-o à mão."), true);
         $("#photoBtn").hidden = false;
       }
     };
     const gotCode = code => {
       $("#bcInput").value = code;
       const owner = state.products.get(code);
-      if (owner) { setSt(""); $("#pErr").textContent = `Este código já pertence a ${owner.name}`; }
-      else { setSt("Código lido"); $("#pErr").textContent = ""; $("#pnInput").focus(); }
+      if (owner) { setSt(""); $("#pErr").textContent = tf("Este código já pertence a {name}", { name: owner.name }); }
+      else { setSt(t("Código lido")); $("#pErr").textContent = ""; $("#pnInput").focus(); }
     };
     $("#photoBtn").onclick = () => pickPhotoCode(gotCode);
     Scanner.captureHandler = code => {
       stopCapture();
-      box.hidden = true; capBtn.hidden = false; capBtn.textContent = "Ler outro código";
+      box.hidden = true; capBtn.hidden = false; capBtn.textContent = t("Ler outro código");
       $("#bcInput").value = code;
       const owner = state.products.get(code);
-      if (owner) { setSt(""); $("#pErr").textContent = `Este código já pertence a ${owner.name}`; }
-      else { setSt("Código lido"); $("#pnInput").focus(); }
+      if (owner) { setSt(""); $("#pErr").textContent = tf("Este código já pertence a {name}", { name: owner.name }); }
+      else { setSt(t("Código lido")); $("#pnInput").focus(); }
     };
     Scanner.stop(); Scanner.status = "idle";
     Scanner.start($("#capture video"));
@@ -1238,27 +1524,147 @@ function openProductSheet(p) {
     const name = $("#pnInput").value.trim();
     const err = $("#pErr");
     const minStock = parseMin($("#minInput").value);
-    if (Number.isNaN(minStock)) { err.textContent = "O stock mínimo tem de ser um número inteiro, ou ficar vazio"; return; }
+    if (Number.isNaN(minStock)) { err.textContent = t("O stock mínimo tem de ser um número inteiro, ou ficar vazio"); return; }
     if (p) {
-      if (!name) { err.textContent = "Introduza o nome do produto"; return; }
+      if (!name) { err.textContent = t("Introduza o nome do produto"); return; }
       await updateProduct(p, { name, minStock });
     } else {
       const bc = cleanBarcode($("#bcInput").value);
-      if (!bc) { err.textContent = "Introduza um código de barras"; return; }
-      if (state.products.has(bc)) { err.textContent = `Este código já pertence a ${state.products.get(bc).name}`; return; }
-      if (!name) { err.textContent = "Introduza o nome do produto"; return; }
+      if (!bc) { err.textContent = t("Introduza um código de barras"); return; }
+      if (state.products.has(bc)) { err.textContent = tf("Este código já pertence a {name}", { name: state.products.get(bc).name }); return; }
+      if (!name) { err.textContent = t("Introduza o nome do produto"); return; }
       await addProduct(bc, name, minStock);
     }
-    closeSheet(); toast(p ? "Produto guardado" : "Produto adicionado", true); render();
+    closeSheet(); toast(p ? t("Produto guardado") : t("Produto adicionado"), true); render();
   };
   const del = $("#delProd");
   if (del) del.onclick = async () => {
-    const ok = await confirmModal(`Eliminar ${esc(p.name)}?`,
-      `O código ${esc(p.barcode)} vai ser tratado como um produto novo da próxima vez que o ler. As contagens já guardadas mantêm-se.`,
-      "Eliminar produto", "Cancelar", true);
+    const ok = await confirmModal(tf("Eliminar {name}?", { name: esc(p.name) }),
+      tf("O código {code} vai ser tratado como um produto novo da próxima vez que o ler. As contagens já guardadas mantêm-se.", { code: esc(p.barcode) }),
+      t("Eliminar produto"), t("Cancelar"), true);
     if (!ok) return;
-    await deleteProduct(p); closeSheet(); toast("Produto eliminado"); render();
+    await deleteProduct(p); closeSheet(); toast(t("Produto eliminado")); render();
   };
+}
+
+/* ---------- Import products from an exported Excel ---------- */
+const norm = v => String(v ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+const HEAD = {
+  name: ["nome do produto", "product name", "nome", "produto", "product", "name"],
+  code: ["codigo de barras", "barcode", "codigo", "code", "ean"],
+  min: ["stock minimo", "minimum stock", "minimo", "minimum", "min", "min."],
+};
+function cellText(v) {
+  if (v === null || v === undefined) return "";
+  if (typeof v === "object") {
+    if (Array.isArray(v.richText)) return v.richText.map(r => r.text).join("");
+    if (v.text !== undefined) return String(v.text);
+    if (v.result !== undefined) return cellText(v.result);
+    if (v instanceof Date) return "";
+    return "";
+  }
+  if (typeof v === "number") return Number.isInteger(v) ? v.toFixed(0) : String(v);
+  return String(v);
+}
+
+async function readProductsFromExcel(file) {
+  const ExcelJS = await loadExcel();
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(await file.arrayBuffer());
+  const found = new Map();
+  let sawHeader = false;
+  wb.eachSheet(ws => {
+    let cols = null, headerRow = 0;
+    for (let r = 1; r <= Math.min(5, ws.rowCount) && !cols; r++) {
+      const row = ws.getRow(r), map = {};
+      row.eachCell({ includeEmpty: false }, (c, col) => {
+        const h = norm(cellText(c.value));
+        for (const k of Object.keys(HEAD)) if (map[k] === undefined && HEAD[k].includes(h)) map[k] = col;
+      });
+      if (map.name && map.code) { cols = map; headerRow = r; }
+    }
+    if (!cols) return;
+    sawHeader = true;
+    for (let r = headerRow + 1; r <= ws.rowCount; r++) {
+      const row = ws.getRow(r);
+      const code = cleanBarcode(cellText(row.getCell(cols.code).value));
+      const name = cellText(row.getCell(cols.name).value).trim();
+      if (!code || !name || found.has(code)) continue;
+      let minStock = null;
+      if (cols.min) {
+        const m = parseMin(cellText(row.getCell(cols.min).value));
+        if (Number.isInteger(m)) minStock = m;
+      }
+      found.set(code, { barcode: code, name, minStock });
+    }
+  });
+  return { sawHeader, products: [...found.values()] };
+}
+
+function pickImportFile() {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  input.style.display = "none";
+  document.body.appendChild(input);
+  input.onchange = async () => {
+    const file = input.files && input.files[0];
+    input.remove();
+    if (!file) return;
+    toast(t("A ler o ficheiro…"));
+    let res;
+    try { res = await readProductsFromExcel(file); }
+    catch (e) { toast(t("Não foi possível ler este ficheiro. Escolha um Excel (.xlsx) exportado por esta aplicação.")); return; }
+    if (!res.sawHeader) { toast(t("Não encontrei as colunas Nome do produto e Código de barras neste Excel.")); return; }
+    const fresh = res.products.filter(p => !state.products.has(p.barcode));
+    const known = res.products.length - fresh.length;
+    if (!fresh.length) {
+      toast(res.products.length ? t("Todos os produtos deste Excel já estão na sua lista.") : t("Este Excel não tem produtos."));
+      return;
+    }
+    const ok = await confirmModal(
+      tf("Importar {n}?", { n: plural(fresh.length, "produto", "produtos") }),
+      (known === 1 ? t("1 produto já existe na sua lista e não é alterado.") + " "
+        : known > 1 ? tf("{k} produtos já existem na sua lista e não são alterados.", { k: known }) + " " : "")
+        + t("São importados o nome, o código de barras e o stock mínimo. As quantidades não são importadas."),
+      t("Importar"), t("Cancelar"));
+    if (!ok) return;
+    const now = nowISO();
+    const added = fresh.map(p => ({ id: uid(), barcode: p.barcode, name: p.name, minStock: p.minStock, createdAt: now }));
+    await DB.tx("products", "readwrite", st => { added.forEach(p => st.products.put(p)); });
+    added.forEach(p => state.products.set(p.barcode, p));
+    toast(plural(added.length, "produto importado", "produtos importados"), true);
+    render();
+  };
+  input.click();
+}
+
+/* ---------- Settings page ---------- */
+const APP_VERSION = "2.4";
+function renderSettings() {
+  const el = $("#settings");
+  const seg = (key, options) => `<div class="seg" role="radiogroup">${options.map(([val, label]) =>
+    `<button role="radio" aria-checked="${settings[key] === val}" data-set="${key}" data-val="${val}">${label}</button>`).join("")}</div>`;
+  const sw = key => `<button class="switch" role="switch" aria-checked="${!!settings[key]}" data-toggle="${key}" aria-label="${settings[key] ? t("Ligado") : t("Desligado")}"></button>`;
+  el.innerHTML = `<div class="pad"><div class="set-list">
+      <div class="set-row"><div class="set-text"><b>${t("Aspeto")}</b></div>${seg("theme", [["dark", t("Escuro")], ["light", t("Claro")]])}</div>
+      <div class="set-row"><div class="set-text"><b>${t("Idioma")}</b></div>${seg("lang", [["pt", "Português"], ["en", "English"]])}</div>
+      <div class="set-row"><div class="set-text"><b>${t("Som ao ler código")}</b><small>${t("Um bipe curto quando um código é reconhecido.")}</small></div>${sw("sound")}</div>
+      <div class="set-row"><div class="set-text"><b>${t("Vibração ao ler código")}</b><small>${t("Uma vibração curta quando um código é reconhecido. Nem todos os telemóveis suportam.")}</small></div>${sw("vibrate")}</div>
+    </div><p class="note">${t("Versão")} ${APP_VERSION}</p></div>`;
+  el.querySelectorAll("[data-set]").forEach(b => b.onclick = async () => {
+    settings[b.dataset.set] = b.dataset.val;
+    applyTheme(); render();
+    await saveSettings();
+  });
+  el.querySelectorAll("[data-toggle]").forEach(b => b.onclick = async () => {
+    const k = b.dataset.toggle;
+    settings[k] = !settings[k];
+    if (settings[k] && k === "sound") beep();
+    if (settings[k] && k === "vibrate") { try { navigator.vibrate && navigator.vibrate(40); } catch (e) {} }
+    render();
+    await saveSettings();
+  });
 }
 
 /* ---------- Confirm modal ---------- */
@@ -1293,7 +1699,7 @@ if ("serviceWorker" in navigator && (location.protocol === "https:" || location.
 (async function boot() {
   try { await loadAll(); }
   catch (e) {
-    $("#scan").innerHTML = `<div class="pad"><div class="empty"><strong>O armazenamento não está disponível</strong>Este browser está a bloquear o armazenamento no dispositivo (a navegação privada pode fazer isto). Abra a aplicação numa janela normal do browser.</div></div>`;
+    $("#scan").innerHTML = `<div class="pad"><div class="empty"><strong>${t("O armazenamento não está disponível")}</strong>${t("Este browser está a bloquear o armazenamento no dispositivo (a navegação privada pode fazer isto). Abra a aplicação numa janela normal do browser.")}</div></div>`;
     return;
   }
   showTab("scan");
